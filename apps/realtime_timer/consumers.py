@@ -3,8 +3,10 @@ import logging
 from datetime import datetime
 from functools import wraps
 
+import redis.asyncio as aioredis
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 
 from .business_logic import selectors
@@ -50,6 +52,7 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
         self.user = self.scope["user"]
         self.session_id = self.scope["url_route"]["kwargs"]["session_id"]
         self.session_group_name = f"focus_session_{self.session_id}"
+        self.redis_client = await aioredis.from_url(f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}")
         self.session = await database_sync_to_async(get_object_or_404)(
             FocusSession,
             session_id=self.session_id,
@@ -60,6 +63,7 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
         await self.accept()
         logger.info("Websocket connected: session_id=%s user_id=%s", self.session_id, self.user.id)
         await self.send_timer_update_to_all_clients()
+        await self.timer_service.schedule_next_cycle_change(redis_client=self.redis_client)
         await self.update_session_followers_list_to_all_clients()
 
     async def disconnect(self, close_code):
@@ -77,6 +81,7 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
                     "Created focus period on disconnect: session_id=%s user_id=%s", self.session_id, self.user.id
                 )
         await self.channel_layer.group_discard(self.session_group_name, self.channel_name)  # type: ignore
+        await self.redis_client.aclose()
         logger.info(
             "Websocket disconnected: session_id=%s user_id=%s close_code=%s", self.session_id, self.user.id, close_code
         )
@@ -90,8 +95,7 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
         if action == "toggle_timer":
             await self.toggle_timer()
         if action == "transition_to_next_cycle":
-            logger.info("Transitioning to next cycle: session_id=%s user_id=%s", self.session_id, self.user.id)
-            await self.transition_to_next_cycle()
+            await self.sync_inactive_timer()
         if action == "stop_timer":
             await self.stop_timer()
         if action == "followers_update":
@@ -106,18 +110,24 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
 
     @async_session_owner_only
     async def toggle_timer(self):
-        await self.timer_service.toggle_timer()
+        timer_state = await self.timer_service.toggle_timer()
+        if timer_state == "paused":
+            await self.timer_service.cancel_scheduled_cycle_change(self.redis_client)
+        elif timer_state == "resumed":
+            await self.timer_service.schedule_next_cycle_change(redis_client=self.redis_client)
         await self.send_timer_update_to_all_clients()
         await self.update_session_will_finish_at_to_all_clients()
 
     @async_session_owner_only
     async def stop_timer(self):
         await self.timer_service.stop_timer()
+        await self.timer_service.cancel_scheduled_cycle_change(self.redis_client)
         await self.send_timer_update_to_all_clients()
 
     @async_session_owner_only
     async def transition_to_next_cycle(self):
         await self.timer_service.transition_to_next_cycle()
+        await self.timer_service.schedule_next_cycle_change(redis_client=self.redis_client)
         await self.send_timer_update_to_all_clients()
         await self.update_session_will_finish_at_to_all_clients()
 

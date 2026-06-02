@@ -2,8 +2,9 @@
 class FocusSessionManager {
   constructor(sessionId) {
     this.sessionId = sessionId;
+    const websocketProtocol = window.location.protocol === "https:" ? "wss" : "ws";
     this.socket = new WebSocket(
-      `ws://${window.location.host}/ws/focus_session/${sessionId}/`,
+      `${websocketProtocol}://${window.location.host}/ws/focus_session/${sessionId}/`,
     );
     this.socket.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
     this.socket.onclose = (e) => this.reloadWindowAfterDelay();

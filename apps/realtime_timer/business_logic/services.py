@@ -1,6 +1,8 @@
 import logging
+import time
 
 from channels.db import database_sync_to_async
+from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from django.forms import ValidationError
@@ -11,6 +13,7 @@ from ..models import FocusCycle, FocusPeriod, FocusSession, SessionFollower
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+SCHEDULED_CYCLE_CHANGES_KEY = "scheduled_cycle_changes"
 
 
 def create_focus_cycles_and_session(
@@ -86,9 +89,20 @@ def fetch_focus_cycles_data_from_post_request(request: HttpRequest) -> dict | Ht
 
 
 class AsyncTimerService:
-    def __init__(self, session: FocusSession, user) -> None:
+    def __init__(self, session: FocusSession | str, user, username: str | None = None) -> None:
         self.session = session
         self.user = user
+        self.username = username or getattr(user, "username", "")
+
+    @database_sync_to_async
+    def _refresh_session(self):
+        if isinstance(self.session, str):
+            self.session = FocusSession.objects.select_related("owner", "current_cycle").get(session_id=self.session)
+            return self.session
+        self.session = FocusSession.objects.select_related("owner", "current_cycle").get(
+            session_id=self.session.session_id
+        )
+        return self.session
 
     @database_sync_to_async
     def _get_timer_state(self):
@@ -144,6 +158,13 @@ class AsyncTimerService:
         duration_for_unfinished_fp = await self._get_duration_for_unfinished_fp_for_current_cycle(current_cycle)
         return total_time_focused_for_finished_fp + duration_for_unfinished_fp
 
+    async def _get_remaining_seconds_for_current_cycle(self) -> int:
+        await self._refresh_session()
+        current_cycle = await self._get_current_cycle()
+        all_focus_period_duration = await self._get_all_focus_period_duration_for_current_cycle(current_cycle)
+        remaining_time = current_cycle.duration.seconds - all_focus_period_duration.seconds
+        return max(remaining_time, 0)
+
     async def _save_last_focus_period_of_current_session(self):
         """
         this function is used to end the last focus period of the current session
@@ -197,10 +218,13 @@ class AsyncTimerService:
         return total_focused_time
 
     async def pause_timer(self):
+        await self._refresh_session()
         if self.session.timer_state == FocusSession.TIMER_RUNNING:
             self.session.timer_state = FocusSession.TIMER_PAUSED
             await self.session.asave()
             await self._save_last_focus_period_of_current_session()
+            return "paused"
+        return self.session.timer_state
 
     async def stop_timer(self):
         """
@@ -210,23 +234,29 @@ class AsyncTimerService:
         """
         logger.debug("Stopping timer: user=%s timezone=%s", self.user.username, self.user.timezone)
         await self.pause_timer()  # make sure the last focus period is ended
+        await self._refresh_session()
         self.session.total_focus_completed = await self._calculate_total_focus_completed()
         self.session.timer_state = FocusSession.TIMER_COMPLETED
         await self.session.asave()
+        return "completed"
 
     async def resume_timer(self):
+        await self._refresh_session()
         if self.session.timer_state == FocusSession.TIMER_PAUSED:
             # just add a new focus period
             await self._create_new_focus_period()
             self.session.timer_state = FocusSession.TIMER_RUNNING
             await self.session.asave()
+            return "resumed"
+        return self.session.timer_state
 
     async def toggle_timer(self):
         timer_state = await self._get_timer_state()
         if timer_state == FocusSession.TIMER_RUNNING:
-            await self.pause_timer()
+            return await self.pause_timer()
         elif timer_state == FocusSession.TIMER_PAUSED:
-            await self.resume_timer()
+            return await self.resume_timer()
+        return timer_state
 
     @database_sync_to_async
     def _add_user_to_session_followers(self, user):
@@ -243,6 +273,7 @@ class AsyncTimerService:
         call this inside the websocket consumer every second to send
         the update time to the client
         """
+        await self._refresh_session()
         data = {
             "remaining_time": 0,
             "current_cycle": {},
@@ -279,6 +310,7 @@ class AsyncTimerService:
     async def transition_to_next_cycle(self):
         """
         here we invalidate the cache when"""
+        await self._refresh_session()
         await self._save_last_focus_period_of_current_session()
         current_cycle = await self._get_current_cycle()
         current_cycle.is_completed = True
@@ -295,6 +327,70 @@ class AsyncTimerService:
                 session=self.session,
                 cycle=next_cycle,
             )
+            return True
         else:
             # since there is no next cycle, we will stop the timer
             await self.stop_timer()
+            return False
+
+    async def change_cycle_if_needed(self, session: FocusSession | None = None):
+        if session is not None:
+            self.session = session
+        await self._refresh_session()
+        if self.session.timer_state != FocusSession.TIMER_RUNNING:
+            return False
+        remaining_seconds = await self._get_remaining_seconds_for_current_cycle()
+        if remaining_seconds > 0:
+            return False
+        return await self.transition_to_next_cycle()
+
+    async def schedule_current_cycle_change(self, redis_client):
+        await self._refresh_session()
+        if self.session.timer_state != FocusSession.TIMER_RUNNING:
+            await self.cancel_scheduled_cycle_change(redis_client)
+            return None
+        remaining_seconds = await self._get_remaining_seconds_for_current_cycle()
+        next_change_timestamp = time.time() + remaining_seconds
+        await redis_client.zadd(SCHEDULED_CYCLE_CHANGES_KEY, {str(self.session.session_id): next_change_timestamp})
+        logger.info(
+            "Scheduled cycle change: session_id=%s remaining_seconds=%s",
+            self.session.session_id,
+            remaining_seconds,
+        )
+        return next_change_timestamp
+
+    async def schedule_next_cycle_change(self, redis_client):
+        return await self.schedule_current_cycle_change(redis_client)
+
+    async def cancel_scheduled_cycle_change(self, redis_client):
+        await redis_client.zrem(SCHEDULED_CYCLE_CHANGES_KEY, str(self.session.session_id))
+        logger.info("Cancelled scheduled cycle change: session_id=%s", self.session.session_id)
+
+    async def cancel_scheduled_cycle_change_if_timer_not_running(self, redis_client):
+        await self._refresh_session()
+        if self.session.timer_state != FocusSession.TIMER_RUNNING:
+            await self.cancel_scheduled_cycle_change(redis_client)
+
+
+async def trigger_timer_update_for_session(session_id: str):
+    session = await database_sync_to_async(FocusSession.objects.select_related("owner").get)(session_id=session_id)
+    service = AsyncTimerService(session=session, user=session.owner)
+    timer_display_data = await service.get_timer_display_data()
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"focus_session_{session_id}",
+        {
+            "type": "timer_update",
+            "timer_display_data": timer_display_data,
+        },
+    )
+    await channel_layer.group_send(
+        f"focus_session_{session_id}",
+        {
+            "type": "will_finish_at_update",
+        },
+    )
+
+
+async def trigger_sync_timer_for_all_connected_clients(session_id: str):
+    await trigger_timer_update_for_session(session_id)

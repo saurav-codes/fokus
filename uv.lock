@@ -340,6 +340,7 @@ dependencies = [
     { name = "django-timezone-field" },
     { name = "django-widget-tweaks" },
     { name = "python-dotenv" },
+    { name = "redis" },
     { name = "slippers" },
 ]
 
@@ -363,6 +364,7 @@ requires-dist = [
     { name = "django-timezone-field", specifier = ">=7.2.1" },
     { name = "django-widget-tweaks", specifier = ">=1.5.1" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "redis", specifier = ">=8.0.0" },
     { name = "slippers", specifier = ">=0.6.3" },
 ]
 

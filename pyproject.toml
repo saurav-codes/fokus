@@ -13,6 +13,7 @@ dependencies = [
     "django-timezone-field>=7.2.1",
     "django-widget-tweaks>=1.5.1",
     "python-dotenv>=1.2.2",
+    "redis>=8.0.0",
     "slippers>=0.6.3",
 ]
 

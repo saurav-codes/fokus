@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from channels.db import database_sync_to_async
 from django.db.models import QuerySet, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -11,6 +12,21 @@ User = get_user_model()
 
 def get_focus_session_by_id(*, session_id) -> FocusSession:
     return get_object_or_404(FocusSession, session_id=session_id)
+
+
+@database_sync_to_async
+def get_session_by_id_async(session_id) -> FocusSession | None:
+    try:
+        return FocusSession.objects.select_related("owner", "current_cycle").get(session_id=session_id)
+    except FocusSession.DoesNotExist:
+        return None
+
+
+@database_sync_to_async
+def get_session_owner_async(session: FocusSession):
+    if session is None:
+        return None
+    return session.owner
 
 
 def is_user_a_session_follower(*, session: FocusSession, user) -> bool:
