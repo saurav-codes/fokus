@@ -16,9 +16,20 @@ Including another URLconf
 """
 
 from django.contrib import admin
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.urls import include, path
+from django.views.generic.base import RedirectView
+
+
+def static_asset_redirect(asset_name: str):
+    return RedirectView.as_view(url=staticfiles_storage.url(asset_name), permanent=True)
 
 urlpatterns = [
+    path("favicon.ico", static_asset_redirect("favicon.ico")),
+    path("apple-touch-icon.png", static_asset_redirect("apple-touch-icon.png")),
+    path("site.webmanifest", static_asset_redirect("site.webmanifest")),
+    path("browserconfig.xml", static_asset_redirect("browserconfig.xml")),
+    path("og-image.png", static_asset_redirect("og-image.png")),
     path("control-room-focus1/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("", include("apps.realtime_timer.urls")),
