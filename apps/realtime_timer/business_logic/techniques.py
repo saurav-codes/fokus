@@ -1,6 +1,6 @@
 import datetime
-from ..models import FocusCycle, FocusSession
 
+from ..models import FocusCycle, FocusSession
 
 ###############################################
 # HELPER FUNCTIONS FOR GENERATING CAMEL FOCUS CYCLES

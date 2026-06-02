@@ -1,0 +1,53 @@
+[project]
+name = "focus-timer-v"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "channels>=4.3.2",
+    "channels-redis>=4.3.0",
+    "daphne>=4.2.1",
+    "django>=6.0.5",
+    "django-allauth>=65.18.0",
+    "django-allauth-ui>=1.8.1",
+    "django-htmx>=1.27.0",
+    "django-timezone-field>=7.2.1",
+    "django-widget-tweaks>=1.5.1",
+    "python-dotenv>=1.2.2",
+    "slippers>=0.6.3",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.0",
+    "pytest>=9.0.3",
+    "pytest-django>=4.12.0",
+    "ruff>=0.15.15",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "src.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+addopts = "-v --tb=short"
+markers = [
+    "slow: marks tests as slow",
+    "integration: marks integration tests",
+]
+testpaths = ["apps"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+exclude = [
+    ".git",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "*/migrations/*",
+    "production_static_files",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "src"]

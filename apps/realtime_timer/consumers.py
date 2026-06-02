@@ -1,15 +1,15 @@
-from datetime import datetime
 import json
 import logging
+from datetime import datetime
+from functools import wraps
 
+from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.shortcuts import get_object_or_404
+
 from .business_logic import selectors
 from .business_logic.services import AsyncTimerService
 from .models import FocusSession
-from channels.db import database_sync_to_async
-
-from functools import wraps
 
 logger = logging.getLogger(__name__)
 
@@ -73,9 +73,13 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
                 # since the timer is running, we will create a new focus period
                 # which will be the last focus period of the session
                 await self.timer_service._create_new_focus_period()
-                logger.info("Created focus period on disconnect: session_id=%s user_id=%s", self.session_id, self.user.id)
+                logger.info(
+                    "Created focus period on disconnect: session_id=%s user_id=%s", self.session_id, self.user.id
+                )
         await self.channel_layer.group_discard(self.session_group_name, self.channel_name)  # type: ignore
-        logger.info("Websocket disconnected: session_id=%s user_id=%s close_code=%s", self.session_id, self.user.id, close_code)
+        logger.info(
+            "Websocket disconnected: session_id=%s user_id=%s close_code=%s", self.session_id, self.user.id, close_code
+        )
 
     async def receive(self, text_data):
         """
@@ -185,6 +189,11 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
         client side and then clientside have not idea
         about the server time. so we update that time here
         """
-        logger.info("Inactive timer sync requested: session_id=%s user_id=%s at=%s", self.session_id, self.user.id, datetime.now())
+        logger.info(
+            "Inactive timer sync requested: session_id=%s user_id=%s at=%s",
+            self.session_id,
+            self.user.id,
+            datetime.now(),
+        )
         await self.send_timer_update_to_all_clients()
         await self.update_session_will_finish_at_to_all_clients()

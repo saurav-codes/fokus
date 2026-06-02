@@ -1,8 +1,6 @@
 from django.urls import path
-from . import views
-from . import htmx_views
-from .routing import websocket_urlpatterns
 
+from . import htmx_views, views
 
 app_name = "realtime_timer"
 
@@ -10,9 +8,6 @@ urlpatterns = [
     path("", views.HomepageView.as_view(), name="home"),
     path("main-session/", views.MainSessionView.as_view(), name="main-session-view"),
     path("session/<uuid:session_id>/", views.SessionDetailView.as_view(), name="session-detail-view"),
-    # path("dashboard/", views.DashboardView.as_view(), name="dashboard"),
-    # path("task/create/", views.CreateTaskView.as_view(), name="create_task"),
-    # path("task/<int:task_id>/toggle/", views.ToggleTaskView.as_view(), name="toggle_task"),
 ]
 
 htmx_urlpatterns = [
@@ -34,4 +29,3 @@ htmx_urlpatterns = [
 ]
 
 urlpatterns += htmx_urlpatterns
-urlpatterns += websocket_urlpatterns

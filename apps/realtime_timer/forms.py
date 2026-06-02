@@ -1,7 +1,6 @@
-from re import I
-from typing import Any
-from .models import FocusSession
 from django import forms
+
+from .models import FocusSession
 
 
 class FocusSessionForm(forms.ModelForm):

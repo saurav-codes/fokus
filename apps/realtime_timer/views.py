@@ -1,13 +1,10 @@
 import logging
 from typing import Any
+
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import render
 from django.views import View
 from django.views.generic import TemplateView
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404, render, redirect
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
-
-from apps.realtime_timer.models import FocusSession, SessionFollower
 
 from .business_logic import selectors
 from .forms import FocusSessionForm
@@ -51,38 +48,3 @@ class SessionDetailView(LoginRequiredMixin, View):
                 "is_session_follower": is_session_follower,
             },
         )
-
-
-# class DashboardView(LoginRequiredMixin, ListView):
-#     template_name = "dashboard.html"
-#     context_object_name = "user_sessions"
-
-#     def get_queryset(self):
-#         return selectors.get_user_sessions(user=self.request.user)
-
-#     def get_context_data(self, **kwargs):
-#         context = super().get_context_data(**kwargs)
-#         context["followed_sessions"] = selectors.get_followed_sessions(user=self.request.user)
-#         return context
-
-
-# class CreateTaskView(LoginRequiredMixin, View):
-#     def post(self, request):
-#         session_id = request.POST.get("session_id")
-#         description = request.POST.get("description")
-#         session = selectors.get_focus_session_by_id(session_id=session_id)
-#         task = services.create_task(session=session, description=description)
-#         return HttpResponse(
-#             f'<li hx-target="this" hx-swap="outerHTML" id="task-{task.pk}">{task.description} <button hx-post="/task/{task.pk}/toggle/">Toggle</button></li>'
-#         )
-
-
-# class ToggleTaskView(LoginRequiredMixin, View):
-#     def post(self, request, task_id):
-#         task = selectors.get_task_by_id(task_id=task_id)
-#         if request.user == task.session.owner:
-#             services.toggle_task(task=task)
-#             return HttpResponse(
-#                 f'<li hx-target="this" hx-swap="outerHTML" id="task-{task.pk}">{task.description} <button hx-post="/task/{task.pk}/toggle/">Toggle</button></li>'
-#             )
-#         return HttpResponse("Unauthorized", status=403)

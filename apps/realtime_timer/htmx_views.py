@@ -2,17 +2,19 @@
 These views are specifically for HTMX
 as they return response suitable for HTMX
 """
+
 import logging
 
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
+from django_htmx.http import HttpResponseClientRedirect
 
 from apps.realtime_timer.models import FocusSession
+
 from .business_logic import services, techniques
 from .forms import FocusSessionForm
-from django.urls import reverse
-from django_htmx.http import HttpResponseClientRedirect
 
 logger = logging.getLogger(__name__)
 

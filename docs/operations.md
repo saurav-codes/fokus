@@ -90,10 +90,10 @@ On VPS:
 cd /home/focususer/focus-timer-v
 git status
 git pull origin main
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python manage.py check
-.venv/bin/python manage.py migrate --noinput
-.venv/bin/python manage.py collectstatic --noinput
+uv sync --frozen
+uv run python manage.py check
+uv run python manage.py migrate --noinput
+uv run python manage.py collectstatic --noinput
 sudo systemctl restart focus-timer-v-web.service
 sudo nginx -t
 sudo systemctl reload nginx
@@ -105,6 +105,7 @@ Checkout the previous commit and restart:
 
 ```bash
 git checkout <previous-commit>
-.venv/bin/python manage.py collectstatic --noinput
+uv sync --frozen
+uv run python manage.py collectstatic --noinput
 sudo systemctl restart focus-timer-v-web.service
 ```

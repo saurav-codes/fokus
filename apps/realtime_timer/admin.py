@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 from django.contrib import admin
 
-from .models import User, FocusSession, FocusPeriod, FocusCycle, Task, SessionFollower
+from .models import FocusCycle, FocusPeriod, FocusSession, SessionFollower, User
 
 
 @admin.register(User)
@@ -68,27 +67,6 @@ class FocusPeriodAdmin(admin.ModelAdmin):
 class FocusCycleAdmin(admin.ModelAdmin):
     list_display = ("id", "session", "cycle_type", "duration", "order")
     raw_id_fields = ("session",)
-
-
-@admin.register(Task)
-class TaskAdmin(admin.ModelAdmin):
-    list_display = (
-        "id",
-        "user",
-        "session",
-        "description",
-        "is_completed",
-        "created_at",
-        "updated_at",
-    )
-    list_filter = (
-        "user",
-        "session",
-        "is_completed",
-        "created_at",
-        "updated_at",
-    )
-    date_hierarchy = "created_at"
 
 
 @admin.register(SessionFollower)

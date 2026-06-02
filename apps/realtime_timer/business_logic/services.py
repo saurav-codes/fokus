@@ -1,12 +1,15 @@
-from django.forms import ValidationError
-from django.http import HttpRequest, HttpResponse
+import logging
 
-from ..models import FocusPeriod, FocusSession, FocusCycle, SessionFollower
+from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
+from django.forms import ValidationError
+from django.http import HttpRequest, HttpResponse
 from django.utils import timezone
-from channels.db import database_sync_to_async
 
+from ..models import FocusCycle, FocusPeriod, FocusSession, SessionFollower
+
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -73,7 +76,8 @@ def fetch_focus_cycles_data_from_post_request(request: HttpRequest) -> dict | Ht
     cycles_durations = request.POST.getlist("focus_cycle_duration")
     try:
         return {
-            i: {"type": t, "duration": int(d)} for i, (t, d) in enumerate(zip(cycles_types, cycles_durations), start=1)
+            i: {"type": t, "duration": int(d)}
+            for i, (t, d) in enumerate(zip(cycles_types, cycles_durations, strict=False), start=1)
         }
     except ValueError:
         return HttpResponse(
@@ -159,9 +163,11 @@ class AsyncTimerService:
             max_time_to_save_for_focus_period = await self._get_max_time_to_save_for_focus_period()
             last_focus_period.duration = min(fp_duration, max_time_to_save_for_focus_period)
             await last_focus_period.asave()
-            print(f"choosing a minimum b/w {fp_duration} and {max_time_to_save_for_focus_period}")
-            print(
-                "last focus period ended with duration: ", last_focus_period.duration, "and id: ", last_focus_period.id
+            logger.debug(
+                "Saved focus period: duration=%s max_duration=%s period_id=%s",
+                last_focus_period.duration,
+                max_time_to_save_for_focus_period,
+                last_focus_period.id,
             )
 
     async def _get_max_time_to_save_for_focus_period(self):
@@ -192,7 +198,6 @@ class AsyncTimerService:
 
     async def pause_timer(self):
         if self.session.timer_state == FocusSession.TIMER_RUNNING:
-            print("timer is running so pausing timer")
             self.session.timer_state = FocusSession.TIMER_PAUSED
             await self.session.asave()
             await self._save_last_focus_period_of_current_session()
@@ -203,7 +208,7 @@ class AsyncTimerService:
         we will just calculate all the time spent and end the last focus period
         and mark the session as completed
         """
-        print(f"stopping timer for user {self.user.username} with timezone {self.user.timezone}")
+        logger.debug("Stopping timer: user=%s timezone=%s", self.user.username, self.user.timezone)
         await self.pause_timer()  # make sure the last focus period is ended
         self.session.total_focus_completed = await self._calculate_total_focus_completed()
         self.session.timer_state = FocusSession.TIMER_COMPLETED
@@ -217,14 +222,10 @@ class AsyncTimerService:
             await self.session.asave()
 
     async def toggle_timer(self):
-        print(f"toggling timer for {self.user.username}")
         timer_state = await self._get_timer_state()
-        print(f"timer state: {timer_state} for {self.user.username}")
         if timer_state == FocusSession.TIMER_RUNNING:
-            print(f"pausing timer for {self.user.username}")
             await self.pause_timer()
         elif timer_state == FocusSession.TIMER_PAUSED:
-            print(f"resuming timer for {self.user.username}")
             await self.resume_timer()
 
     @database_sync_to_async
