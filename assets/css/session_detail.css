@@ -7,6 +7,14 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+.session-role {
+    color: #555;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
 .session-title {
     color: #4a69bd;
     font-size: 2.5rem;
@@ -84,6 +92,30 @@
 
 .btn-danger:hover {
     background-color: #d44040;
+}
+
+.btn-secondary {
+    background-color: #f8f9fa;
+    border: 1px solid #d9dee7;
+    color: #333;
+}
+
+.btn-secondary:hover,
+.btn-secondary.is-copied {
+    background-color: #e9ecef;
+}
+
+.share-session-container {
+    margin: 0 0 2rem;
+    text-align: center;
+}
+
+.share-session-feedback {
+    color: #3c55a5;
+    font-size: 0.9rem;
+    font-weight: 700;
+    min-height: 1.35rem;
+    padding-top: 0.5rem;
 }
 
 .timer-display {

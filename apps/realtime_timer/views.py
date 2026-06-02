@@ -29,14 +29,22 @@ class MainSessionView(LoginRequiredMixin, TemplateView):
         return context_data
 
 
-class SessionDetailView(LoginRequiredMixin, View):
+class SessionDetailView(View):
     def get(self, request, session_id):
         focus_session = selectors.get_focus_session_by_id(session_id=session_id)
-        is_session_owner = focus_session.owner == request.user
+        is_authenticated = request.user.is_authenticated
+        is_session_owner = is_authenticated and focus_session.owner == request.user
         followers = selectors.get_session_followers(session=focus_session)
-        is_session_follower = selectors.is_user_a_session_follower(session=focus_session, user=request.user)
-        will_finish_at = selectors.get_session_will_finish_at(request_user=request.user, session=focus_session)
-        logger.info("Session detail viewed: session_id=%s user_id=%s", session_id, request.user.id)
+        is_session_follower = is_authenticated and selectors.is_user_a_session_follower(
+            session=focus_session,
+            user=request.user,
+        )
+        request_user_for_finish_time = request.user if is_authenticated else focus_session.owner
+        will_finish_at = selectors.get_session_will_finish_at(
+            request_user=request_user_for_finish_time,
+            session=focus_session,
+        )
+        logger.info("Session detail viewed: session_id=%s user_id=%s", session_id, getattr(request.user, "id", None))
         return render(
             request,
             "realtime_timer/session_detail.html",

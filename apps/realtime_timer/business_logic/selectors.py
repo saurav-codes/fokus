@@ -31,6 +31,8 @@ def get_session_owner_async(session: FocusSession):
 
 def is_user_a_session_follower(*, session: FocusSession, user) -> bool:
     """Is this user a follower of the given session?"""
+    if not getattr(user, "is_authenticated", False):
+        return False
     return session.followers.filter(follower=user).exists()  # type: ignore
 
 

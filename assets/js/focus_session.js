@@ -251,6 +251,7 @@ let focusSessionManager;
 document.addEventListener("DOMContentLoaded", (event) => {
   const sessionId = document.getElementById("session-id").dataset.sessionId;
   focusSessionManager = new FocusSessionManager(sessionId);
+  setupSessionShareButton();
 
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') {
@@ -266,3 +267,51 @@ document.addEventListener("DOMContentLoaded", (event) => {
   });
 
 });
+
+function setupSessionShareButton() {
+  const shareButton = document.getElementById("share-session-button");
+  const shareLabel = document.getElementById("share-session-label");
+  const shareFeedback = document.getElementById("share-session-feedback");
+  if (!shareButton || !shareFeedback) {
+    return;
+  }
+
+  shareButton.addEventListener("click", async () => {
+    if (await copySessionUrl()) {
+      if (shareLabel) {
+        shareLabel.textContent = "Copied";
+      }
+      shareFeedback.textContent = "Session link copied.";
+      shareButton.classList.add("is-copied");
+      window.setTimeout(() => {
+        if (shareLabel) {
+          shareLabel.textContent = "Share session";
+        }
+        shareFeedback.textContent = "";
+        shareButton.classList.remove("is-copied");
+      }, 2200);
+    } else {
+      shareFeedback.textContent = "Copy failed. Select the address bar instead.";
+    }
+  });
+}
+
+async function copySessionUrl() {
+  try {
+    await navigator.clipboard.writeText(window.location.href);
+    return true;
+  } catch (_error) {
+    const textarea = document.createElement("textarea");
+    textarea.value = window.location.href;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-1000px";
+    textarea.style.left = "-1000px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const copied = document.execCommand("copy");
+    textarea.remove();
+    return copied;
+  }
+}

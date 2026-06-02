@@ -35,7 +35,11 @@ def async_session_owner_only(func):
         session_owner = await get_session_owner()
 
         if user != session_owner:
-            logger.warning("Unauthorized session action: session_id=%s user_id=%s", self.session_id, user.id)
+            logger.warning(
+                "Unauthorized session action: session_id=%s user_id=%s",
+                self.session_id,
+                getattr(user, "id", None),
+            )
             await self.send(text_data=json.dumps({"error": "You are not authorized to perform this action."}))
             return
         return await func(self, *args, **kwargs)
@@ -45,10 +49,6 @@ def async_session_owner_only(func):
 
 class FocusSessionConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        if self.scope["user"].is_anonymous:
-            # no permission for anonymous users
-            await self.close()
-            return
         self.user = self.scope["user"]
         self.session_id = self.scope["url_route"]["kwargs"]["session_id"]
         self.session_group_name = f"focus_session_{self.session_id}"
@@ -61,9 +61,10 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
 
         await self.channel_layer.group_add(self.session_group_name, self.channel_name)  # type: ignore
         await self.accept()
-        logger.info("Websocket connected: session_id=%s user_id=%s", self.session_id, self.user.id)
+        logger.info("Websocket connected: session_id=%s user_id=%s", self.session_id, getattr(self.user, "id", None))
         await self.send_timer_update_to_all_clients()
-        await self.timer_service.schedule_next_cycle_change(redis_client=self.redis_client)
+        if self.user == await self.timer_service._get_session_owner():
+            await self.timer_service.schedule_next_cycle_change(redis_client=self.redis_client)
         await self.update_session_followers_list_to_all_clients()
 
     async def disconnect(self, close_code):
@@ -78,12 +79,17 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
                 # which will be the last focus period of the session
                 await self.timer_service._create_new_focus_period()
                 logger.info(
-                    "Created focus period on disconnect: session_id=%s user_id=%s", self.session_id, self.user.id
+                    "Created focus period on disconnect: session_id=%s user_id=%s",
+                    self.session_id,
+                    getattr(self.user, "id", None),
                 )
         await self.channel_layer.group_discard(self.session_group_name, self.channel_name)  # type: ignore
         await self.redis_client.aclose()
         logger.info(
-            "Websocket disconnected: session_id=%s user_id=%s close_code=%s", self.session_id, self.user.id, close_code
+            "Websocket disconnected: session_id=%s user_id=%s close_code=%s",
+            self.session_id,
+            getattr(self.user, "id", None),
+            close_code,
         )
 
     async def receive(self, text_data):
@@ -99,13 +105,25 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
         if action == "stop_timer":
             await self.stop_timer()
         if action == "followers_update":
-            logger.info("Updating followers list: session_id=%s user_id=%s", self.session_id, self.user.id)
+            logger.info(
+                "Updating followers list: session_id=%s user_id=%s",
+                self.session_id,
+                getattr(self.user, "id", None),
+            )
             await self.update_session_followers_list_to_all_clients()
         if action == "sync_inactive_timer":
-            logger.info("Syncing inactive timer: session_id=%s user_id=%s", self.session_id, self.user.id)
+            logger.info(
+                "Syncing inactive timer: session_id=%s user_id=%s",
+                self.session_id,
+                getattr(self.user, "id", None),
+            )
             await self.sync_inactive_timer()
         if action == "join_session":
-            logger.info("Joining focus session: session_id=%s user_id=%s", self.session_id, self.user.id)
+            logger.info(
+                "Joining focus session: session_id=%s user_id=%s",
+                self.session_id,
+                getattr(self.user, "id", None),
+            )
             await self.join_session(self.user)
 
     @async_session_owner_only
@@ -142,6 +160,9 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
         )
 
     async def join_session(self, user):
+        if not user.is_authenticated:
+            await self.send(text_data=json.dumps({"error": "Login required to join session."}))
+            return
         await self.timer_service.join_session(user)
         await self.update_session_followers_list_to_all_clients()
 
@@ -159,7 +180,8 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def _get_session_will_finish_at_data(self):
-        will_finish_at = selectors.get_session_will_finish_at(request_user=self.user, session=self.session)
+        request_user = self.user if self.user.is_authenticated else self.session.owner
+        will_finish_at = selectors.get_session_will_finish_at(request_user=request_user, session=self.session)
         return will_finish_at
 
     async def update_session_will_finish_at_to_all_clients(self):
@@ -202,7 +224,7 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
         logger.info(
             "Inactive timer sync requested: session_id=%s user_id=%s at=%s",
             self.session_id,
-            self.user.id,
+            getattr(self.user, "id", None),
             datetime.now(),
         )
         await self.send_timer_update_to_all_clients()
