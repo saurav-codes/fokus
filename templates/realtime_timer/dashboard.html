@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Dashboard | Focus Timer{% endblock title %}
+{% block extra_head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/focus_app.css' %}">
+{% endblock extra_head %}
+{% block main_class %}app-main{% endblock main_class %}
+{% block header %}
+    {% with active_page="dashboard" %}
+        {% include "realtime_timer/partials/_app_header.html" %}
+    {% endwith %}
+{% endblock header %}
+{% block content %}
+<section class="dashboard-page">
+    <div class="dashboard-head">
+        <div>
+            <p class="eyebrow">Dashboard</p>
+            <h1>Sessions</h1>
+            <p>Every focus session created by {{ user.username }}.</p>
+        </div>
+        <a href="{% url 'realtime_timer:main-session-view' %}" class="app-button app-button--primary">
+            <i class="fa-regular fa-circle-play" aria-hidden="true"></i>
+            New session
+        </a>
+    </div>
+
+    <div class="dashboard-metrics" aria-label="Focus totals">
+        <div class="metric-card">
+            <strong>{{ total_sessions }}</strong>
+            <span>sessions</span>
+        </div>
+        <div class="metric-card">
+            <strong>{{ total_focus_time_label }}</strong>
+            <span>focus logged</span>
+        </div>
+        <div class="metric-card">
+            <strong>{{ avg_session_duration_label }}</strong>
+            <span>average session</span>
+        </div>
+    </div>
+
+    <div class="dashboard-list" aria-label="Session history">
+        {% for session in sessions %}
+            <a class="session-row" href="{% url 'realtime_timer:session-detail-view' session.session_id %}">
+                <span class="session-row__status" data-state="{{ session.timer_state }}">{{ session.timer_state }}</span>
+                <span>
+                    <strong>{{ session.technique }}</strong>
+                    <span data-utc-datetime="{{ session.created_at|date:'c' }}"></span>
+                </span>
+                <span>{{ session.focus_cycles.count }} cycles</span>
+            </a>
+        {% empty %}
+            <div class="empty-state">No sessions yet.</div>
+        {% endfor %}
+    </div>
+</section>
+<script src="{% static 'js/local_datetime.js' %}" defer></script>
+{% endblock content %}
+{% block footer %}
+    {% include "realtime_timer/partials/_app_footer.html" %}
+{% endblock footer %}

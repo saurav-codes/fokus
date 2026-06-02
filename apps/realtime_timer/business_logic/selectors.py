@@ -1,11 +1,12 @@
-from django.contrib.auth import get_user_model
+from datetime import UTC
+
 from channels.db import database_sync_to_async
+from django.contrib.auth import get_user_model
 from django.db.models import QuerySet, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.utils.formats import date_format
 
-from ..models import FocusSession, SessionFollower
+from ..models import FocusPeriod, FocusSession, SessionFollower
 
 User = get_user_model()
 
@@ -40,9 +41,12 @@ def get_session_followers(*, session: FocusSession) -> QuerySet[SessionFollower]
     return SessionFollower.objects.filter(session=session)
 
 
+def format_utc_datetime(value):
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
 def get_session_will_finish_at(*, request_user, session: FocusSession):
-    user = User.objects.get(username=request_user.username)
-    user_timezone = timezone.now().astimezone(user.timezone)  # type: ignore
+    now = timezone.now()
     # total time user will spend on this session
     all_cycles_total_duration = session.focus_cycles.all().only("duration").aggregate(  # type: ignore
         total_duration=Sum("duration")
@@ -60,14 +64,47 @@ def get_session_will_finish_at(*, request_user, session: FocusSession):
     )
     # time user has spent on the current focus period
     if timer_started_at_for_unfinished_fp:
-        duration_for_unfinished_fp = user_timezone - timer_started_at_for_unfinished_fp.started_at
+        duration_for_unfinished_fp = now - timer_started_at_for_unfinished_fp.started_at
     else:
         duration_for_unfinished_fp = timezone.timedelta(0)
     total_time_focused = total_finished_fp + duration_for_unfinished_fp
     # time user has left to focus on this session
     total_time_left_to_focus = all_cycles_total_duration - total_time_focused
     # time user will finish the session at
-    time_user_will_finish_at = user_timezone + total_time_left_to_focus
-    # format the time in readable format
-    formatted_time = date_format(time_user_will_finish_at, format="F j, Y, g:i A")
-    return f"{formatted_time} {user.timezone}"  # type: ignore
+    time_user_will_finish_at = now + total_time_left_to_focus
+    return format_utc_datetime(time_user_will_finish_at)
+
+
+def get_dashboard_data_for_user(user):
+    sessions = (
+        FocusSession.objects.filter(owner=user)
+        .select_related("current_cycle")
+        .prefetch_related("focus_cycles")
+        .order_by("-created_at")
+    )
+    total_sessions = sessions.count()
+    total_focus_time = (
+        FocusPeriod.objects.filter(session__owner=user, ended_at__isnull=False).aggregate(total=Sum("duration"))[
+            "total"
+        ]
+        or timezone.timedelta(0)
+    )
+    avg_session_duration = total_focus_time / total_sessions if total_sessions else timezone.timedelta(0)
+
+    return {
+        "sessions": sessions,
+        "total_sessions": total_sessions,
+        "total_focus_time": total_focus_time,
+        "total_focus_time_label": _format_duration(total_focus_time),
+        "avg_session_duration": avg_session_duration,
+        "avg_session_duration_label": _format_duration(avg_session_duration),
+    }
+
+
+def _format_duration(duration):
+    total_seconds = int(duration.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes = remainder // 60
+    if hours:
+        return f"{hours}h {minutes}m"
+    return f"{minutes}m"

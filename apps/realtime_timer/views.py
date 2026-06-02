@@ -29,6 +29,15 @@ class MainSessionView(LoginRequiredMixin, TemplateView):
         return context_data
 
 
+class DashboardView(LoginRequiredMixin, TemplateView):
+    template_name = "realtime_timer/dashboard.html"
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context_data = super().get_context_data(**kwargs)
+        context_data.update(selectors.get_dashboard_data_for_user(self.request.user))
+        return context_data
+
+
 class SessionDetailView(View):
     def get(self, request, session_id):
         focus_session = selectors.get_focus_session_by_id(session_id=session_id)
@@ -39,11 +48,7 @@ class SessionDetailView(View):
             session=focus_session,
             user=request.user,
         )
-        request_user_for_finish_time = request.user if is_authenticated else focus_session.owner
-        will_finish_at = selectors.get_session_will_finish_at(
-            request_user=request_user_for_finish_time,
-            session=focus_session,
-        )
+        will_finish_at = selectors.get_session_will_finish_at(request_user=request.user, session=focus_session)
         logger.info("Session detail viewed: session_id=%s user_id=%s", session_id, getattr(request.user, "id", None))
         return render(
             request,
