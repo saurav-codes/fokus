@@ -20,16 +20,14 @@
         --line: rgba(21, 23, 21, 0.16);
     }
 
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --paper: #10130f;
-            --ink: #f4f0e7;
-            --fern: #88caa6;
-            --mint: #234332;
-            --clay: #e18975;
-            --sun: #e3bc63;
-            --line: rgba(244, 240, 231, 0.16);
-        }
+    :root[data-theme="dark"] {
+        --paper: #10130f;
+        --ink: #f4f0e7;
+        --fern: #88caa6;
+        --mint: #234332;
+        --clay: #e18975;
+        --sun: #e3bc63;
+        --line: rgba(244, 240, 231, 0.16);
     }
 
     body {
@@ -56,12 +54,10 @@
         border-bottom: 1px solid var(--line);
     }
 
-    @media (prefers-color-scheme: dark) {
-        .landing-hero {
-            background:
-                radial-gradient(circle at 18% 24%, rgba(35, 67, 50, 0.95), transparent 24rem),
-                linear-gradient(135deg, #121610 0%, #18251d 48%, #2c1c18 100%);
-        }
+    :root[data-theme="dark"] .landing-hero {
+        background:
+            radial-gradient(circle at 18% 24%, rgba(35, 67, 50, 0.95), transparent 24rem),
+            linear-gradient(135deg, #121610 0%, #18251d 48%, #2c1c18 100%);
     }
 
     .brand-lockup {

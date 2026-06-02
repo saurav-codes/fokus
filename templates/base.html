@@ -33,6 +33,18 @@
     <meta name="twitter:title" content="{% block twitter_title %}Lazyplanner&#x27;s Focus Timer{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Create shareable live focus sessions with a simple timer for deep work, study, and co-working.{% endblock %}">
     <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'og-image.png' %}">
+    <script>
+        (() => {
+            const theme = localStorage.getItem("theme");
+            if (theme === "dark" || theme === "light") {
+                document.documentElement.dataset.theme = theme;
+            } else {
+                document.documentElement.dataset.theme = window.matchMedia("(prefers-color-scheme: dark)").matches
+                    ? "dark"
+                    : "light";
+            }
+        })();
+    </script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -58,6 +70,10 @@
     </header>
     {% endblock %}
 
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch theme">
+        <i class="fa-solid fa-moon" data-theme-toggle-icon aria-hidden="true"></i>
+    </button>
+
     <main class="{% block main_class %}container mx-auto flex-grow p-4{% endblock %}">
         {% block content %}
         {% endblock %}
@@ -77,6 +93,32 @@
         console.log("%cWell hello there, curious developer.", "font-size: 20px; font-weight: bold; color: #3498db;");
         console.log("%cCaught you peeking under the hood.", "font-size: 16px; color: #2ecc71;");
         console.log("%cI am the only developer working on it, so it may have bugs. If you are facing any issues, reach out at https://x.com/saurav__codes or selftaughtdev@pm.me", "font-size: 18px; font-weight: bold; color: #e74c3c;");
+    </script>
+    <script>
+        (() => {
+            const root = document.documentElement;
+            const button = document.querySelector("[data-theme-toggle]");
+            const icon = document.querySelector("[data-theme-toggle-icon]");
+            const themeColor = document.querySelector('meta[name="theme-color"]');
+            const currentTheme = () => root.dataset.theme === "dark" ? "dark" : "light";
+
+            const setTheme = (theme, persist = true) => {
+                root.dataset.theme = theme;
+                if (persist) {
+                    localStorage.setItem("theme", theme);
+                }
+                const isDark = theme === "dark";
+                button.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+                button.setAttribute("aria-pressed", String(isDark));
+                icon.className = isDark ? "fa-solid fa-sun" : "fa-solid fa-moon";
+                themeColor.setAttribute("content", isDark ? "#10130f" : "#275843");
+            };
+
+            setTheme(currentTheme(), false);
+            button.addEventListener("click", () => {
+                setTheme(currentTheme() === "dark" ? "light" : "dark");
+            });
+        })();
     </script>
 </body>
 </html>
