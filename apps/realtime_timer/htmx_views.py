@@ -5,10 +5,11 @@ as they return response suitable for HTMX
 
 import logging
 
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.urls import reverse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from django_htmx.http import HttpResponseClientRedirect
 
 from apps.realtime_timer.models import FocusSession
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @require_POST
+@login_required
 def temporary_focus_cycles_generator_view(request):
     """
     return focus cycles table based on user input time
@@ -51,6 +53,7 @@ def temporary_focus_cycles_generator_view(request):
 
 
 @require_POST
+@login_required
 def focus_cycles_and_session_create_view(request):
     """
     create focus cycles and session
@@ -87,6 +90,14 @@ def focus_cycles_and_session_create_view(request):
     )
 
 
+@login_required
+@require_GET
 def add_cycle_to_cycle_table_view(request):
-    new_cycle_index = int(request.GET.get("index", 0)) + 1
+    try:
+        cycle_index = int(request.GET.get("index", 0))
+    except ValueError:
+        return HttpResponse("Cycle index must be an integer.", status=400)
+    if cycle_index < 0 or cycle_index >= services.MAX_CYCLE_COUNT:
+        return HttpResponse(f"Cycle index must be between 0 and {services.MAX_CYCLE_COUNT - 1}.", status=400)
+    new_cycle_index = cycle_index + 1
     return render(request, "realtime_timer/partials/_new_cycle_form.html", {"index": new_cycle_index})

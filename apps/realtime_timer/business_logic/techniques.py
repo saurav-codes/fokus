@@ -255,16 +255,17 @@ def _generate_fixed_interval_focus_cycles(total_time: int, focus_duration: int, 
 
 def _format_generated_focus_cycle_data(focus_cycles, remaining_time, total_cycles_duration, user):
     focus_cycles = _convert_cycles_list_to_dict(focus_cycles)
-    exact_time_after_finishing_all_cycles = datetime.datetime.now(user.timezone) + datetime.timedelta(
+    exact_time_after_finishing_all_cycles = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
         minutes=total_cycles_duration
     )
-    exact_time_after_finishing_all_cycles_in_12_hr_format = exact_time_after_finishing_all_cycles.strftime("%I:%M %p")
+    exact_finish_time = exact_time_after_finishing_all_cycles.isoformat().replace("+00:00", "Z")
     return {
         "total_cycles": len(focus_cycles),
         "cycles": focus_cycles,
-        "exact_time_after_finishing_all_cycles": exact_time_after_finishing_all_cycles_in_12_hr_format,
+        "exact_time_after_finishing_all_cycles": exact_finish_time,
         "extra_time_left": remaining_time,
         "total_minutes_distributed": total_cycles_duration,
+        "max_cycle_duration": max((cycle["duration"] for cycle in focus_cycles), default=1),
     }
 
 
@@ -287,7 +288,7 @@ def generate_focus_cycle_data_based_on_technique_and_duration(
                 {"order": 3, "type": "FOCUS", "duration": 25},
                 {"order": 4, "type": "BREAK", "duration": 5}
             ],
-            "exact_time_after_finishing_all_cycles": "12:00 PM",
+            "exact_time_after_finishing_all_cycles": "2026-06-02T12:00:00Z",
             "extra_time_left": 0,
             "total_minutes_distributed": 0,
         }
