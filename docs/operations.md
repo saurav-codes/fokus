@@ -14,6 +14,7 @@
 - TLS: Let's Encrypt via `certbot`
 - Redis: `redis-server` on `127.0.0.1:6379`
 - Database: SQLite at `/home/focususer/focus-timer-v/db.sqlite3`
+- Static files: collected to `/home/focususer/focus-timer-v/production_static_files`
 
 ## SSH
 
@@ -145,6 +146,8 @@ sudo systemctl restart focus-timer-v-redis-scheduler.service
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+
+`STATICFILES_STORAGE_BACKEND` defaults to Django `StaticFilesStorage`. Do not switch production to manifest static storage until `django-allauth-ui` static post-processing is verified.
 
 ## Rollback
 

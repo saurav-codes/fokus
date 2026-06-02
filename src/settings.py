@@ -125,9 +125,10 @@ STATICFILES_FINDERS = [
 ]
 
 
-staticfiles_storage_backend = "django.contrib.staticfiles.storage.StaticFilesStorage"
-if not DEBUG and not IS_TESTING:
-    staticfiles_storage_backend = "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
+staticfiles_storage_backend = os.getenv(
+    "STATICFILES_STORAGE_BACKEND",
+    "django.contrib.staticfiles.storage.StaticFilesStorage",
+)
 
 STORAGES = {
     "default": {
