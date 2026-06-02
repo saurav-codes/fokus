@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from django.views import View
 from django.views.generic import TemplateView
@@ -10,6 +11,8 @@ from apps.realtime_timer.models import FocusSession, SessionFollower
 
 from .business_logic import selectors
 from .forms import FocusSessionForm
+
+logger = logging.getLogger(__name__)
 
 
 class HomepageView(LoginRequiredMixin, TemplateView):
@@ -36,6 +39,7 @@ class SessionDetailView(LoginRequiredMixin, View):
         followers = selectors.get_session_followers(session=focus_session)
         is_session_follower = selectors.is_user_a_session_follower(session=focus_session, user=request.user)
         will_finish_at = selectors.get_session_will_finish_at(request_user=request.user, session=focus_session)
+        logger.info("Session detail viewed: session_id=%s user_id=%s", session_id, request.user.id)
         return render(
             request,
             "realtime_timer/session_detail.html",

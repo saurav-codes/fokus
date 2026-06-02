@@ -1,5 +1,7 @@
 from datetime import datetime
 import json
+import logging
+
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.shortcuts import get_object_or_404
 from .business_logic import selectors
@@ -8,6 +10,8 @@ from .models import FocusSession
 from channels.db import database_sync_to_async
 
 from functools import wraps
+
+logger = logging.getLogger(__name__)
 
 
 def async_session_owner_only(func):
@@ -29,6 +33,7 @@ def async_session_owner_only(func):
         session_owner = await get_session_owner()
 
         if user != session_owner:
+            logger.warning("Unauthorized session action: session_id=%s user_id=%s", self.session_id, user.id)
             await self.send(text_data=json.dumps({"error": "You are not authorized to perform this action."}))
             return
         return await func(self, *args, **kwargs)
@@ -53,6 +58,7 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
 
         await self.channel_layer.group_add(self.session_group_name, self.channel_name)  # type: ignore
         await self.accept()
+        logger.info("Websocket connected: session_id=%s user_id=%s", self.session_id, self.user.id)
         await self.send_timer_update_to_all_clients()
         await self.update_session_followers_list_to_all_clients()
 
@@ -67,8 +73,9 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
                 # since the timer is running, we will create a new focus period
                 # which will be the last focus period of the session
                 await self.timer_service._create_new_focus_period()
-                print("created new focus period when user disconnected")
+                logger.info("Created focus period on disconnect: session_id=%s user_id=%s", self.session_id, self.user.id)
         await self.channel_layer.group_discard(self.session_group_name, self.channel_name)  # type: ignore
+        logger.info("Websocket disconnected: session_id=%s user_id=%s close_code=%s", self.session_id, self.user.id, close_code)
 
     async def receive(self, text_data):
         """
@@ -79,18 +86,18 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
         if action == "toggle_timer":
             await self.toggle_timer()
         if action == "transition_to_next_cycle":
-            print(f"switching to next cycle for user {self.user.username}")
+            logger.info("Transitioning to next cycle: session_id=%s user_id=%s", self.session_id, self.user.id)
             await self.transition_to_next_cycle()
         if action == "stop_timer":
             await self.stop_timer()
         if action == "followers_update":
-            print("updating session followers list")
+            logger.info("Updating followers list: session_id=%s user_id=%s", self.session_id, self.user.id)
             await self.update_session_followers_list_to_all_clients()
         if action == "sync_inactive_timer":
-            print(f"syncing inactive timer for {self.user.username}")
+            logger.info("Syncing inactive timer: session_id=%s user_id=%s", self.session_id, self.user.id)
             await self.sync_inactive_timer()
         if action == "join_session":
-            print(f"user {self.user.username} joined session")
+            logger.info("Joining focus session: session_id=%s user_id=%s", self.session_id, self.user.id)
             await self.join_session(self.user)
 
     @async_session_owner_only
@@ -178,6 +185,6 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
         client side and then clientside have not idea
         about the server time. so we update that time here
         """
-        print("syncing inactive timer", datetime.now())
+        logger.info("Inactive timer sync requested: session_id=%s user_id=%s at=%s", self.session_id, self.user.id, datetime.now())
         await self.send_timer_update_to_all_clients()
         await self.update_session_will_finish_at_to_all_clients()

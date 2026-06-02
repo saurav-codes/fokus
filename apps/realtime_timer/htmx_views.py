@@ -2,6 +2,8 @@
 These views are specifically for HTMX
 as they return response suitable for HTMX
 """
+import logging
+
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
@@ -11,6 +13,8 @@ from .business_logic import services, techniques
 from .forms import FocusSessionForm
 from django.urls import reverse
 from django_htmx.http import HttpResponseClientRedirect
+
+logger = logging.getLogger(__name__)
 
 
 @require_POST
@@ -22,6 +26,7 @@ def temporary_focus_cycles_generator_view(request):
     """
     form = FocusSessionForm(request.POST)
     if form.is_valid():
+        logger.info("Generating focus cycles: user_id=%s technique=%s", request.user.id, form.cleaned_data["technique"])
         generated_focus_cycle_data = techniques.generate_focus_cycle_data_based_on_technique_and_duration(
             technique=form.cleaned_data["technique"],
             total_time=form.cleaned_data["duration_hours"] * 60 + form.cleaned_data["duration_minutes"],
@@ -62,12 +67,16 @@ def focus_cycles_and_session_create_view(request):
             owner=request.user,
         )
         if isinstance(focus_session, FocusSession):
+            logger.info("Focus session created: session_id=%s user_id=%s", focus_session.session_id, request.user.id)
             return HttpResponseClientRedirect(
                 reverse("realtime_timer:session-detail-view", args=[focus_session.session_id])
             )
         else:
             # add error message to the form
+            logger.warning("Focus session creation failed: user_id=%s error=%s", request.user.id, focus_session)
             form.add_error(None, str(focus_session))
+    else:
+        logger.warning("Focus session form invalid: user_id=%s errors=%s", request.user.id, form.errors.as_json())
 
     return render(
         request,
