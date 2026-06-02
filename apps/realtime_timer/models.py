@@ -1,6 +1,8 @@
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 from timezone_field import TimeZoneField
@@ -51,6 +53,15 @@ class FocusSession(models.Model):
     def __str__(self):
         return f"Session {self.session_id} by {self.owner.username}"
 
+    def clean(self):
+        super().clean()
+        if self.current_cycle_id and self.current_cycle.session_id != self.session_id:
+            raise ValidationError({"current_cycle": "Current cycle must belong to this focus session."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class FocusPeriod(models.Model):
     """
@@ -85,15 +96,32 @@ class FocusCycle(models.Model):
     ]
     session = models.ForeignKey(FocusSession, on_delete=models.CASCADE, related_name="focus_cycles")
     cycle_type = models.CharField(max_length=5, choices=CYCLE_TYPES)
-    duration = models.DurationField(help_text="Duration in minutes")
+    duration = models.DurationField(
+        help_text="Duration in minutes",
+        validators=[
+            MinValueValidator(timezone.timedelta(minutes=1)),
+            MaxValueValidator(timezone.timedelta(minutes=600)),
+        ],
+    )
     order = models.PositiveIntegerField()
     is_completed = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.cycle_type} - {self.duration} minutes"
 
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     class Meta:
         ordering = ["order"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(duration__gte=timezone.timedelta(minutes=1))
+                & models.Q(duration__lte=timezone.timedelta(minutes=600)),
+                name="focus_cycle_duration_between_1_and_600_minutes",
+            )
+        ]
 
 
 class SessionFollower(models.Model):

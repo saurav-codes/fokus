@@ -1,32 +1,41 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
 from .models import FocusCycle, FocusPeriod, FocusSession, SessionFollower, User
 
 
 @admin.register(User)
-class UserAdmin(admin.ModelAdmin):
+class UserAdmin(DjangoUserAdmin):
     list_display = (
         "id",
-        "password",
-        "last_login",
-        "is_superuser",
         "username",
-        "first_name",
-        "last_name",
         "email",
         "is_staff",
         "is_active",
-        "date_joined",
         "timezone",
-    )
-    list_filter = (
         "last_login",
-        "is_superuser",
-        "is_staff",
-        "is_active",
         "date_joined",
     )
-    raw_id_fields = ("groups", "user_permissions")
+    fieldsets = (
+        (None, {"fields": ("username",)}),
+        ("Personal info", {"fields": ("first_name", "last_name", "email", "timezone")}),
+        (
+            "Permissions",
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                ),
+            },
+        ),
+        ("Important dates", {"fields": ("last_login", "date_joined")}),
+    )
+    add_fieldsets = DjangoUserAdmin.add_fieldsets + (
+        ("Preferences", {"fields": ("timezone",)}),
+    )
 
 
 @admin.register(FocusSession)

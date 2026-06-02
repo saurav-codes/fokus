@@ -4,8 +4,8 @@ import time
 from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db.models import Sum
-from django.forms import ValidationError
 from django.http import HttpRequest, HttpResponse
 from django.utils import timezone
 
@@ -14,6 +14,9 @@ from ..models import FocusCycle, FocusPeriod, FocusSession, SessionFollower
 logger = logging.getLogger(__name__)
 User = get_user_model()
 SCHEDULED_CYCLE_CHANGES_KEY = "scheduled_cycle_changes"
+MAX_CYCLE_COUNT = 250
+MAX_CYCLE_DURATION_MINUTES = 600
+MAX_TOTAL_CYCLE_DURATION_MINUTES = (17 * 60) + 59
 
 
 def create_focus_cycles_and_session(
@@ -77,15 +80,32 @@ def create_focus_cycles_and_session(
 def fetch_focus_cycles_data_from_post_request(request: HttpRequest) -> dict | HttpResponse:
     cycles_types = request.POST.getlist("focus_cycle_type")
     cycles_durations = request.POST.getlist("focus_cycle_duration")
+    if len(cycles_types) != len(cycles_durations):
+        return HttpResponse("Each cycle must include a type and duration.", status=400)
+    if not cycles_types:
+        return HttpResponse("At least one focus cycle is required.", status=400)
+    if len(cycles_types) > MAX_CYCLE_COUNT:
+        return HttpResponse(f"A session can include at most {MAX_CYCLE_COUNT} cycles.", status=400)
     try:
-        return {
-            i: {"type": t, "duration": int(d)}
-            for i, (t, d) in enumerate(zip(cycles_types, cycles_durations, strict=False), start=1)
-        }
+        cycles = {}
+        total_duration = 0
+        for i, (cycle_type, duration) in enumerate(zip(cycles_types, cycles_durations, strict=True), start=1):
+            cycle_duration = int(duration)
+            if cycle_type not in {FocusCycle.FOCUS, FocusCycle.BREAK}:
+                return HttpResponse("Cycle type must be FOCUS or BREAK.", status=400)
+            if cycle_duration < 1 or cycle_duration > MAX_CYCLE_DURATION_MINUTES:
+                return HttpResponse(
+                    f"Cycle duration must be between 1 and {MAX_CYCLE_DURATION_MINUTES} minutes.", status=400
+                )
+            total_duration += cycle_duration
+            cycles[i] = {"type": cycle_type, "duration": cycle_duration}
+        if total_duration > MAX_TOTAL_CYCLE_DURATION_MINUTES:
+            return HttpResponse(
+                f"Total session duration must be at most {MAX_TOTAL_CYCLE_DURATION_MINUTES} minutes.", status=400
+            )
+        return cycles
     except ValueError:
-        return HttpResponse(
-            "Duration must be an integer like 1, 2, ... upto any number of minutes you want to focus or break"
-        )
+        return HttpResponse("Duration must be an integer.", status=400)
 
 
 class AsyncTimerService:
@@ -175,7 +195,7 @@ class AsyncTimerService:
         last_focus_period = await database_sync_to_async(self.session.focus_periods.last)()  # type:ignore
         if last_focus_period and not last_focus_period.ended_at:
             # if the last focus period is not ended, end it
-            last_focus_period.ended_at = timezone.now().astimezone(self.user.timezone)
+            last_focus_period.ended_at = timezone.now()
             # calculate the duration of the last focus period
             fp_duration = last_focus_period.ended_at - last_focus_period.started_at
             # sometime this method is called after a long time like
@@ -251,7 +271,8 @@ class AsyncTimerService:
         return self.session.timer_state
 
     async def toggle_timer(self):
-        timer_state = await self._get_timer_state()
+        await self._refresh_session()
+        timer_state = self.session.timer_state
         if timer_state == FocusSession.TIMER_RUNNING:
             return await self.pause_timer()
         elif timer_state == FocusSession.TIMER_PAUSED:
@@ -260,7 +281,8 @@ class AsyncTimerService:
 
     @database_sync_to_async
     def _add_user_to_session_followers(self, user):
-        return SessionFollower.objects.create(follower=user, session=self.session)
+        follower, _created = SessionFollower.objects.get_or_create(follower=user, session=self.session)
+        return follower
 
     async def join_session(self, user):
         await self._add_user_to_session_followers(user)
