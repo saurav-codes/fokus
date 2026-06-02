@@ -15,7 +15,7 @@ from .forms import FocusSessionForm
 logger = logging.getLogger(__name__)
 
 
-class HomepageView(LoginRequiredMixin, TemplateView):
+class HomepageView(TemplateView):
     template_name = "realtime_timer/homepage.html"
 
 

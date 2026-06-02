@@ -11,12 +11,14 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+IS_TESTING = "pytest" in sys.modules or any("pytest" in arg for arg in sys.argv)
 
 LOG_DIR = Path(os.getenv("LOG_DIR", str(BASE_DIR / "logs")))
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -30,6 +32,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY and IS_TESTING:
+    SECRET_KEY = "test-secret-key"
 
 DEBUG = os.getenv("DEBUG", "False").lower() in {"1", "true", "yes", "on"}
 
@@ -154,7 +158,7 @@ STATICFILES_FINDERS = [
 ]
 
 
-if not DEBUG:
+if not DEBUG and not IS_TESTING:
     STATICFILES_STORAGE = "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
 
 STATIC_ROOT = os.path.join(BASE_DIR, "production_static_files")
@@ -203,7 +207,7 @@ SILENCED_SYSTEM_CHECKS = [
     # because some day we will make this as custom page
 ]
 
-CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+CSRF_TRUSTED_ORIGINS = [origin for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if origin]
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 

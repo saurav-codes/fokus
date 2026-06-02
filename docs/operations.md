@@ -61,7 +61,8 @@ curl -I https://focus.lazyplanner.app/accounts/login/
 ```
 
 Expected public login response: `HTTP/2 200`.
-Expected root response: redirect to `/accounts/login/?next=/`.
+Expected root response: public landing page `HTTP/2 200`.
+The root landing page intentionally has no shared app header; login/signup CTAs live in the hero.
 
 ## Nginx
 

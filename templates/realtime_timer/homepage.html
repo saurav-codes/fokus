@@ -1,21 +1,373 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block title %}Lazyplanner Focus Timer{% endblock %}
+
+{% block header %}{% endblock %}
+
+{% block extra_head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fraunces:opsz,wght@9..144,600;9..144,800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --paper: #f7f2e8;
+        --ink: #151715;
+        --fern: #275843;
+        --mint: #b9e8c9;
+        --clay: #c8634d;
+        --sun: #f1b84b;
+        --line: rgba(21, 23, 21, 0.16);
+    }
+
+    body {
+        background: var(--paper);
+    }
+
+    .landing-page {
+        margin: -1rem;
+        color: var(--ink);
+        font-family: "Atkinson Hyperlegible", sans-serif;
+        overflow: hidden;
+    }
+
+    .landing-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.02fr) minmax(320px, 0.98fr);
+        gap: clamp(2rem, 5vw, 5rem);
+        min-height: 74vh;
+        align-items: center;
+        padding: clamp(3rem, 7vw, 6.5rem) clamp(1.25rem, 5vw, 5.5rem);
+        background:
+            radial-gradient(circle at 18% 24%, rgba(185, 232, 201, 0.95), transparent 24rem),
+            linear-gradient(135deg, #fffaf0 0%, #eef7ef 48%, #f8d7c8 100%);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .brand-lockup {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.7rem;
+        width: fit-content;
+        margin-bottom: 1.5rem;
+        padding: 0.55rem 0.8rem;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.62);
+        box-shadow: 0 12px 35px rgba(39, 88, 67, 0.08);
+        font-weight: 700;
+    }
+
+    .brand-lockup img {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .landing-hero h1 {
+        max-width: 760px;
+        font-family: "Fraunces", Georgia, serif;
+        font-size: clamp(3.3rem, 8vw, 7.5rem);
+        line-height: 0.86;
+        letter-spacing: 0;
+        margin: 0;
+    }
+
+    .landing-copy {
+        max-width: 620px;
+        margin-top: 1.5rem;
+        font-size: clamp(1.1rem, 1.9vw, 1.35rem);
+        line-height: 1.55;
+        color: rgba(21, 23, 21, 0.78);
+    }
+
+    .landing-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.9rem;
+        margin-top: 2rem;
+    }
+
+    .landing-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        min-height: 3.35rem;
+        padding: 0 1.25rem;
+        border: 1px solid var(--ink);
+        border-radius: 8px;
+        font-weight: 700;
+        box-shadow: 5px 5px 0 var(--ink);
+        transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .landing-button:hover {
+        transform: translate(2px, 2px);
+        box-shadow: 3px 3px 0 var(--ink);
+    }
+
+    .landing-button.primary {
+        background: var(--ink);
+        color: white;
+        box-shadow: 5px 5px 0 var(--clay);
+    }
+
+    .landing-button.secondary {
+        background: rgba(255, 255, 255, 0.68);
+        color: var(--ink);
+    }
+
+    .timer-panel {
+        position: relative;
+        border: 1px solid var(--ink);
+        border-radius: 8px;
+        background: #fffdf5;
+        box-shadow: 18px 18px 0 rgba(21, 23, 21, 0.12);
+        overflow: hidden;
+    }
+
+    .timer-panel::before {
+        content: "";
+        display: block;
+        height: 1rem;
+        background: repeating-linear-gradient(90deg, var(--fern) 0 3.5rem, var(--sun) 3.5rem 7rem, var(--clay) 7rem 10.5rem);
+        border-bottom: 1px solid var(--ink);
+    }
+
+    .timer-panel-body {
+        padding: clamp(1.25rem, 3vw, 2rem);
+    }
+
+    .session-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.6rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .live-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--fern);
+    }
+
+    .live-dot {
+        width: 0.7rem;
+        height: 0.7rem;
+        border-radius: 999px;
+        background: var(--clay);
+        box-shadow: 0 0 0 0 rgba(200, 99, 77, 0.5);
+        animation: pulse 1.7s infinite;
+    }
+
+    .time-readout {
+        font-family: "Fraunces", Georgia, serif;
+        font-size: clamp(3.4rem, 8vw, 6.5rem);
+        line-height: 0.9;
+        letter-spacing: 0;
+    }
+
+    .cycle-stack {
+        display: grid;
+        gap: 0.8rem;
+        margin-top: 2rem;
+    }
+
+    .cycle-row {
+        display: grid;
+        grid-template-columns: 5.5rem minmax(0, 1fr) 3rem;
+        align-items: center;
+        gap: 0.8rem;
+        min-height: 3.1rem;
+        padding: 0.7rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(247, 242, 232, 0.64);
+        font-weight: 700;
+    }
+
+    .cycle-row.current {
+        background: var(--mint);
+        border-color: var(--ink);
+    }
+
+    .cycle-track {
+        height: 0.55rem;
+        border-radius: 999px;
+        background: rgba(21, 23, 21, 0.11);
+        overflow: hidden;
+    }
+
+    .cycle-track span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--fern);
+    }
+
+    .landing-band {
+        padding: clamp(2.5rem, 5vw, 5rem) clamp(1.25rem, 5vw, 5.5rem);
+        background: #fffdf5;
+    }
+
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .feature-card {
+        min-height: 15rem;
+        padding: 1.35rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbf5e9;
+    }
+
+    .feature-card i {
+        color: var(--clay);
+        font-size: 1.45rem;
+    }
+
+    .feature-card h2 {
+        margin: 1.2rem 0 0.7rem;
+        font-family: "Fraunces", Georgia, serif;
+        font-size: 1.75rem;
+        letter-spacing: 0;
+    }
+
+    .feature-card p {
+        color: rgba(21, 23, 21, 0.72);
+        line-height: 1.55;
+    }
+
+    @keyframes pulse {
+        70% {
+            box-shadow: 0 0 0 0.75rem rgba(200, 99, 77, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(200, 99, 77, 0);
+        }
+    }
+
+    @media (max-width: 900px) {
+        .landing-hero {
+            grid-template-columns: 1fr;
+            min-height: auto;
+        }
+
+        .feature-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .landing-hero h1 {
+            font-size: clamp(3rem, 18vw, 4.4rem);
+        }
+
+        .landing-button {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .cycle-row {
+            grid-template-columns: 4.4rem minmax(0, 1fr) 2.5rem;
+            font-size: 0.86rem;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="text-center">
-    <h1 class="text-4xl font-bold mb-4">Welcome to Focus Timer</h1>
-    <p class="mb-8">Stay productive with our community-driven focus sessions.</p>
-    {% if user.is_authenticated %}
-        <a href="{% url 'realtime_timer:main-session-view' %}"
-           class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-           Session
-        </a>
-    {% else %}
-        <a  class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mr-4">
-            Log In
-        </a>
-        <a  class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-            Sign Up
-        </a>
-    {% endif %}
-</div>
+<section class="landing-page">
+    <div class="landing-hero">
+        <div>
+            <div class="brand-lockup">
+                <img src="{% static 'img/lazyplanner-logo.png' %}" alt="Lazyplanner">
+                <span>Lazyplanner Focus Timer</span>
+            </div>
+            <h1>Focus Timer for long study streams</h1>
+            <p class="landing-copy">
+                Build a full session from your available time, turn it into focus and break cycles,
+                then share the live timer with anyone studying alongside you.
+            </p>
+            <div class="landing-actions">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'realtime_timer:main-session-view' %}" class="landing-button primary">
+                        <i class="fa-solid fa-play"></i>
+                        Start a session
+                    </a>
+                {% else %}
+                    <a href="{% url 'account_signup' %}" class="landing-button primary">
+                        <i class="fa-solid fa-user-plus"></i>
+                        Create account
+                    </a>
+                    <a href="{% url 'account_login' %}" class="landing-button secondary">
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                        Log in
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="timer-panel" aria-label="Focus session preview">
+            <div class="timer-panel-body">
+                <div class="session-meta">
+                    <span>Camel cycle</span>
+                    <span class="live-pill"><span class="live-dot"></span>Live room</span>
+                </div>
+                <div class="time-readout">01:27:42</div>
+                <div class="cycle-stack">
+                    <div class="cycle-row current">
+                        <span>Focus</span>
+                        <div class="cycle-track"><span style="width: 71%;"></span></div>
+                        <span>90m</span>
+                    </div>
+                    <div class="cycle-row">
+                        <span>Break</span>
+                        <div class="cycle-track"><span style="width: 34%;"></span></div>
+                        <span>10m</span>
+                    </div>
+                    <div class="cycle-row">
+                        <span>Focus</span>
+                        <div class="cycle-track"><span style="width: 52%;"></span></div>
+                        <span>25m</span>
+                    </div>
+                    <div class="cycle-row">
+                        <span>Break</span>
+                        <div class="cycle-track"><span style="width: 22%;"></span></div>
+                        <span>5m</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="landing-band">
+        <div class="feature-grid">
+            <article class="feature-card">
+                <i class="fa-solid fa-hourglass-half"></i>
+                <h2>Built for marathon blocks</h2>
+                <p>Turn multi-hour plans into long focus stretches, short resets, and a precise finish time.</p>
+            </article>
+            <article class="feature-card">
+                <i class="fa-solid fa-people-group"></i>
+                <h2>Shared study rooms</h2>
+                <p>Open a session link so friends can follow the same timer without managing their own clock.</p>
+            </article>
+            <article class="feature-card">
+                <i class="fa-solid fa-sliders"></i>
+                <h2>Editable cycles</h2>
+                <p>Review generated cycles, add breaks, remove rows, and shape the session before it starts.</p>
+            </article>
+        </div>
+    </div>
+</section>
 {% endblock %}

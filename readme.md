@@ -1,3 +1,5 @@
+Focus Timer has a public root landing page before login. The landing page does not use the shared app header; account entry points are the hero login/signup CTAs.
+
 Algorithm i used to calculate time intervals for sessions using camel technique. this camel style focus intervals is used by twitch streamer https://www.twitch.tv/vanyastudytogether/
 
 ```mermaid
