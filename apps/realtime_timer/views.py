@@ -2,7 +2,8 @@ import logging
 from typing import Any
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render
+from django.http import HttpResponse
+from django.shortcuts import redirect, render
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -43,6 +44,9 @@ class SessionDetailView(View):
         focus_session = selectors.get_focus_session_by_id(session_id=session_id)
         is_authenticated = request.user.is_authenticated
         is_session_owner = is_authenticated and focus_session.owner == request.user
+        guest_name = ""
+        if not is_authenticated:
+            guest_name = request.session.get(self._guest_name_session_key(session_id), "")
         followers = selectors.get_session_followers(session=focus_session)
         is_session_follower = is_authenticated and selectors.is_user_a_session_follower(
             session=focus_session,
@@ -59,5 +63,25 @@ class SessionDetailView(View):
                 "will_finish_at": will_finish_at,
                 "is_session_owner": is_session_owner,
                 "is_session_follower": is_session_follower,
+                "guest_name": guest_name,
+                "can_connect": is_authenticated or bool(guest_name),
+                "auto_join": bool(guest_name),
             },
         )
+
+    def post(self, request, session_id):
+        if request.user.is_authenticated:
+            return redirect("realtime_timer:session-detail-view", session_id=session_id)
+        focus_session = selectors.get_focus_session_by_id(session_id=session_id)
+        guest_name = (request.POST.get("guest_name") or "").strip()
+        if not guest_name:
+            return HttpResponse("Name is required.", status=400)
+        guest_name = guest_name[:150]
+        if focus_session.followers.filter(username=guest_name).exists():  # type: ignore
+            return HttpResponse("Name already in session.", status=400)
+        request.session[self._guest_name_session_key(session_id)] = guest_name
+        return redirect("realtime_timer:session-detail-view", session_id=session_id)
+
+    @staticmethod
+    def _guest_name_session_key(session_id):
+        return f"guest_name:{session_id}"

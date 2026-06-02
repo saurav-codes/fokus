@@ -61,6 +61,8 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
         )
         self.timer_service = AsyncTimerService(session=self.session, user=self.user)
         self.last_client_broadcast_at = 0.0
+        self.joined_session = False
+        self.joined_guest_name = None
 
         await self.channel_layer.group_add(self.session_group_name, self.channel_name)  # type: ignore
         await self.accept()
@@ -89,6 +91,9 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
                     self.session_id,
                     getattr(self.user, "id", None),
                 )
+        if self.joined_session:
+            await self.timer_service.leave_session(self.user, guest_name=self.joined_guest_name)
+            await self.update_session_followers_list_to_all_clients()
         await self.channel_layer.group_discard(self.session_group_name, self.channel_name)  # type: ignore
         if hasattr(self, "redis_client"):
             await self.redis_client.aclose()
@@ -138,7 +143,7 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
                 self.session_id,
                 getattr(self.user, "id", None),
             )
-            await self.join_session(self.user)
+            await self.join_session(self.user, guest_name=data.get("guest_name"))
         else:
             await self.send(text_data=json.dumps({"error": "Unknown websocket action."}))
 
@@ -175,11 +180,15 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
             },
         )
 
-    async def join_session(self, user):
-        if not user.is_authenticated:
-            await self.send(text_data=json.dumps({"error": "Login required to join session."}))
+    async def join_session(self, user, guest_name=None):
+        try:
+            follower = await self.timer_service.join_session(user, guest_name=guest_name)
+        except ValueError as error:
+            await self.send(text_data=json.dumps({"error": str(error)}))
             return
-        await self.timer_service.join_session(user)
+        self.joined_session = bool(follower)
+        if follower and not user.is_authenticated:
+            self.joined_guest_name = follower["username"]
         await self.update_session_followers_list_to_all_clients()
 
     async def send_throttled_client_broadcasts(self, *, timer=False, will_finish_at=False, followers=False):
@@ -199,9 +208,13 @@ class FocusSessionConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def _get_followers_data(self) -> list[dict[str, str]]:
-        followers = self.session.followers.all()
+        followers = self.session.followers.select_related("follower").all()
         followers_data = [
-            {"username": follower.follower.username, "joined_at": selectors.format_utc_datetime(follower.joined_at)}
+            {
+                "username": follower.display_name,
+                "user_type": follower.user_type,
+                "joined_at": selectors.format_utc_datetime(follower.joined_at),
+            }
             for follower in followers
         ]
         return followers_data

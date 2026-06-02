@@ -907,6 +907,47 @@ body::before {
     line-height: 0.9;
 }
 
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--app-bg) 75%, transparent);
+    backdrop-filter: blur(16px);
+}
+
+.modal-panel {
+    display: grid;
+    gap: 0.9rem;
+    width: min(100%, 24rem);
+    padding: 1.25rem;
+    background: var(--app-surface);
+    border: 1px solid var(--app-line);
+    border-radius: 8px;
+    box-shadow: var(--app-shadow);
+}
+
+.modal-panel h2 {
+    margin: 0;
+    color: var(--app-ink);
+}
+
+.modal-panel label {
+    color: var(--app-muted);
+    font-size: 0.9rem;
+}
+
+.modal-panel input {
+    width: 100%;
+    border: 1px solid var(--app-line);
+    border-radius: 8px;
+    padding: 0.8rem 0.9rem;
+    background: var(--app-bg);
+    color: var(--app-ink);
+}
+
 @keyframes breathe {
     70% {
         box-shadow: 0 0 0 0.7rem color-mix(in srgb, var(--app-coral) 0%, transparent);

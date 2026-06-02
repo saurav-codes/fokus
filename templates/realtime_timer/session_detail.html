@@ -17,8 +17,25 @@
 <section class="timer-page">
     <div id="session-id"
          data-session-id="{{ focus_session.session_id }}"
+         data-can-connect="{{ can_connect|yesno:'true,false' }}"
+         data-guest-name="{{ guest_name }}"
+         data-auto-join="{{ auto_join|yesno:'true,false' }}"
          class="hidden">
     </div>
+    {% if not can_connect %}
+      <div id="guest-name-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="guest-name-title">
+        <form method="post" class="modal-panel">
+          {% csrf_token %}
+          <h2 id="guest-name-title">Enter your name</h2>
+          <label for="guest-name-input">Name shown in followers</label>
+          <input id="guest-name-input" name="guest_name" type="text" maxlength="150" required autofocus>
+          <button type="submit" class="app-button app-button--primary">
+            <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
+            Join session
+          </button>
+        </form>
+      </div>
+    {% endif %}
   <div class="timer-shell" id="focus-session-container">
     <div class="timer-layout">
       <section class="timer-stage" aria-label="Live focus session">
@@ -71,7 +88,7 @@
           <ul class="followers-list">
           {% for follower in followers %}
             <li>
-              <strong>{{ follower.follower.username }}</strong>
+              <strong>{{ follower.display_name }}</strong>
               <span data-utc-datetime="{{ follower.joined_at|date:'c' }}" data-datetime-prefix="Joined ">Joined</span>
             </li>
           {% empty %}

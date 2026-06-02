@@ -55,6 +55,71 @@ def test_dashboard_lists_all_sessions_for_current_user(client, user):
 
 
 @pytest.mark.django_db
+def test_dashboard_counts_owned_and_joined_focus_time(client, user):
+    host = get_user_model().objects.create_user(username="host", password="12345")
+    owned_session = _create_session(user, minutes=25)
+    joined_session = _create_session(host, minutes=50)
+    FocusPeriod.objects.create(
+        session=joined_session,
+        cycle=joined_session.current_cycle,
+        user=user,
+        ended_at=timezone.now(),
+        duration=timezone.timedelta(minutes=40),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("realtime_timer:dashboard-view"))
+
+    assert response.context["total_sessions"] == 2
+    assert response.context["total_focus_time"] == timedelta(minutes=65)
+    assert list(response.context["sessions"]) == [joined_session, owned_session]
+
+
+@pytest.mark.django_db
+def test_dashboard_focus_metrics_ignore_break_cycles_and_format_hours(client, user):
+    session = FocusSession.objects.create(owner=user, technique=FocusSession.POMODORO_TECHNIQUE)
+    focus_cycle = FocusCycle.objects.create(
+        session=session,
+        cycle_type=FocusCycle.FOCUS,
+        duration=timezone.timedelta(minutes=65),
+        order=1,
+        is_completed=True,
+    )
+    break_cycle = FocusCycle.objects.create(
+        session=session,
+        cycle_type=FocusCycle.BREAK,
+        duration=timezone.timedelta(minutes=10),
+        order=2,
+        is_completed=True,
+    )
+    session.current_cycle = break_cycle
+    session.save()
+    FocusPeriod.objects.create(
+        session=session,
+        cycle=focus_cycle,
+        user=user,
+        ended_at=timezone.now(),
+        duration=timezone.timedelta(minutes=65),
+    )
+    FocusPeriod.objects.create(
+        session=session,
+        cycle=break_cycle,
+        user=user,
+        ended_at=timezone.now(),
+        duration=timezone.timedelta(minutes=10),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("realtime_timer:dashboard-view"))
+
+    assert response.context["total_sessions"] == 1
+    assert response.context["total_focus_time"] == timedelta(minutes=65)
+    assert response.context["total_focus_time_label"] == "1h 5m"
+    assert response.context["avg_session_duration"] == timedelta(minutes=65)
+    assert response.context["avg_session_duration_label"] == "1h 5m"
+
+
+@pytest.mark.django_db
 def test_dashboard_selector_orders_newest_session_first(user):
     older_session = _create_session(user, minutes=25)
     newer_session = _create_session(user, minutes=50)

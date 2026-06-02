@@ -2,11 +2,11 @@ from datetime import UTC
 
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
-from django.db.models import QuerySet, Sum
+from django.db.models import Q, QuerySet, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from ..models import FocusPeriod, FocusSession, SessionFollower
+from ..models import FocusCycle, FocusPeriod, FocusSession, SessionFollower
 
 User = get_user_model()
 
@@ -38,7 +38,7 @@ def is_user_a_session_follower(*, session: FocusSession, user) -> bool:
 
 
 def get_session_followers(*, session: FocusSession) -> QuerySet[SessionFollower]:
-    return SessionFollower.objects.filter(session=session)
+    return SessionFollower.objects.filter(session=session).select_related("follower")
 
 
 def format_utc_datetime(value):
@@ -52,13 +52,18 @@ def get_session_will_finish_at(*, request_user, session: FocusSession):
         total_duration=Sum("duration")
     )["total_duration"] or timezone.timedelta(0)
     # now find out how much user has already spent on this session
-    total_finished_fp = session.focus_periods.filter(ended_at__isnull=False).only("duration").aggregate(  # type: ignore
-        total_time_focused=Sum("duration")
-    )["total_time_focused"] or timezone.timedelta(0)
+    total_finished_fp = (
+        session.focus_periods.filter(ended_at__isnull=False)  # type: ignore
+        .filter(Q(user=session.owner) | Q(user__isnull=True))
+        .only("duration")
+        .aggregate(total_time_focused=Sum("duration"))["total_time_focused"]
+        or timezone.timedelta(0)
+    )
     timer_started_at_for_unfinished_fp = (
         session.focus_periods.filter(  # type: ignore
             ended_at__isnull=True,  # the current focus period
         )
+        .filter(Q(user=session.owner) | Q(user__isnull=True))
         .only("started_at")
         .first()
     )
@@ -76,19 +81,21 @@ def get_session_will_finish_at(*, request_user, session: FocusSession):
 
 
 def get_dashboard_data_for_user(user):
+    focus_periods = (
+        FocusPeriod.objects.filter(ended_at__isnull=False, cycle__cycle_type=FocusCycle.FOCUS)
+        .filter(Q(user=user) | Q(user__isnull=True, session__owner=user))
+        .select_related("cycle")
+    )
+    session_ids_with_focus = focus_periods.values_list("session_id", flat=True).distinct()
     sessions = (
-        FocusSession.objects.filter(owner=user)
+        FocusSession.objects.filter(Q(owner=user) | Q(session_id__in=session_ids_with_focus))
         .select_related("current_cycle")
         .prefetch_related("focus_cycles")
+        .distinct()
         .order_by("-created_at")
     )
     total_sessions = sessions.count()
-    total_focus_time = (
-        FocusPeriod.objects.filter(session__owner=user, ended_at__isnull=False).aggregate(total=Sum("duration"))[
-            "total"
-        ]
-        or timezone.timedelta(0)
-    )
+    total_focus_time = focus_periods.aggregate(total=Sum("duration"))["total"] or timezone.timedelta(0)
     avg_session_duration = total_focus_time / total_sessions if total_sessions else timezone.timedelta(0)
 
     return {

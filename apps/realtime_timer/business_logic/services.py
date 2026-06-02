@@ -5,7 +5,7 @@ from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.http import HttpRequest, HttpResponse
 from django.utils import timezone
 
@@ -73,7 +73,7 @@ def create_focus_cycles_and_session(
         focus_session.save()
 
     # create first focus period because the focus session is started.
-    FocusPeriod.objects.create(session=focus_session, cycle=first_cycle)
+    FocusPeriod.objects.create(session=focus_session, cycle=first_cycle, user=owner)
     return focus_session
 
 
@@ -138,7 +138,11 @@ class AsyncTimerService:
 
     async def _create_new_focus_period(self):
         current_cycle = await self._get_current_cycle()
-        await database_sync_to_async(FocusPeriod.objects.create)(session=self.session, cycle=current_cycle)
+        await database_sync_to_async(FocusPeriod.objects.create)(
+            session=self.session,
+            cycle=current_cycle,
+            user=self.session.owner,
+        )
 
     @database_sync_to_async
     def _get_completed_fp_duration_for_current_cycle(self, current_cycle):
@@ -147,6 +151,7 @@ class AsyncTimerService:
                 cycle=current_cycle,
                 ended_at__isnull=False,
             )
+            .filter(Q(user=current_cycle.session.owner) | Q(user__isnull=True))
             .only("duration")
             .aggregate(total_time_focused=Sum("duration"))["total_time_focused"]
         )
@@ -164,6 +169,7 @@ class AsyncTimerService:
                 cycle=current_cycle,
                 ended_at__isnull=True,  # the current focus period
             )
+            .filter(Q(user=current_cycle.session.owner) | Q(user__isnull=True))
             .only("started_at")
             .first()
         )
@@ -192,7 +198,10 @@ class AsyncTimerService:
         so we save the time for the last focus period.
         """
         # get the last focus period
-        last_focus_period = await database_sync_to_async(self.session.focus_periods.last)()  # type:ignore
+        owner_periods = self.session.focus_periods.filter(  # type: ignore
+            Q(user=self.session.owner) | Q(user__isnull=True)
+        )
+        last_focus_period = await database_sync_to_async(owner_periods.last)()
         if last_focus_period and not last_focus_period.ended_at:
             # if the last focus period is not ended, end it
             last_focus_period.ended_at = timezone.now()
@@ -229,9 +238,11 @@ class AsyncTimerService:
         # because the last resumed time will be None if the user started the session
         # and it will contain value if the user resumed the session
         # only call this method once the session is completed
-        total_focused_time_qs = await database_sync_to_async(
-            self.session.focus_periods.values("duration").aggregate  # type:ignore
-        )(  # type: ignore
+        owner_periods = self.session.focus_periods.filter(  # type: ignore
+            Q(user=self.session.owner) | Q(user__isnull=True),
+            cycle__cycle_type=FocusCycle.FOCUS,
+        )
+        total_focused_time_qs = await database_sync_to_async(owner_periods.aggregate)(
             total_time_focused=Sum("duration")
         )
         total_focused_time = total_focused_time_qs["total_time_focused"] or timezone.timedelta(0)
@@ -243,6 +254,7 @@ class AsyncTimerService:
             self.session.timer_state = FocusSession.TIMER_PAUSED
             await self.session.asave()
             await self._save_last_focus_period_of_current_session()
+            await self._end_all_participant_focus_periods()
             return "paused"
         return self.session.timer_state
 
@@ -255,6 +267,7 @@ class AsyncTimerService:
         logger.debug("Stopping timer: user=%s timezone=%s", self.user.username, self.user.timezone)
         await self.pause_timer()  # make sure the last focus period is ended
         await self._refresh_session()
+        await self._end_all_participant_focus_periods()
         self.session.total_focus_completed = await self._calculate_total_focus_completed()
         self.session.timer_state = FocusSession.TIMER_COMPLETED
         await self.session.asave()
@@ -267,6 +280,7 @@ class AsyncTimerService:
             await self._create_new_focus_period()
             self.session.timer_state = FocusSession.TIMER_RUNNING
             await self.session.asave()
+            await self._start_focus_periods_for_authenticated_followers()
             return "resumed"
         return self.session.timer_state
 
@@ -280,12 +294,129 @@ class AsyncTimerService:
         return timer_state
 
     @database_sync_to_async
-    def _add_user_to_session_followers(self, user):
-        follower, _created = SessionFollower.objects.get_or_create(follower=user, session=self.session)
+    def _add_user_to_session_followers(self, user, guest_name: str | None = None):
+        if isinstance(self.session, str):
+            self.session = FocusSession.objects.select_related("owner", "current_cycle").get(session_id=self.session)
+
+        if user.is_authenticated:
+            if user == self.session.owner:
+                return None
+            follower, _created = SessionFollower.objects.get_or_create(
+                follower=user,
+                session=self.session,
+                defaults={"username": user.username, "user_type": SessionFollower.AUTHENTICATED},
+            )
+            if follower.username != user.username or follower.user_type != SessionFollower.AUTHENTICATED:
+                follower.username = user.username
+                follower.user_type = SessionFollower.AUTHENTICATED
+                follower.save(update_fields=["username", "user_type"])
+            return {"username": follower.display_name, "user_type": follower.user_type}
+
+        display_name = (guest_name or "").strip()
+        if not display_name:
+            raise ValueError("Guest name is required.")
+        follower, _created = SessionFollower.objects.get_or_create(
+            session=self.session,
+            username=display_name,
+            defaults={"user_type": SessionFollower.GUEST},
+        )
+        return {"username": follower.display_name, "user_type": follower.user_type}
+
+    @database_sync_to_async
+    def _start_participant_focus_period(self, user):
+        if isinstance(self.session, str):
+            self.session = FocusSession.objects.select_related("owner", "current_cycle").get(session_id=self.session)
+        if not user.is_authenticated or user == self.session.owner:
+            return
+        if self.session.timer_state != FocusSession.TIMER_RUNNING or not self.session.current_cycle_id:
+            return
+        FocusPeriod.objects.get_or_create(
+            session=self.session,
+            user=user,
+            ended_at=None,
+            defaults={"cycle": self.session.current_cycle},
+        )
+
+    @database_sync_to_async
+    def _end_participant_focus_period(self, user):
+        if isinstance(self.session, str):
+            self.session = FocusSession.objects.select_related("owner", "current_cycle").get(session_id=self.session)
+        if not user.is_authenticated or user == self.session.owner:
+            return
+        now = timezone.now()
+        open_periods = (
+            FocusPeriod.objects.filter(session=self.session, user=user, ended_at__isnull=True).select_related("cycle")
+        )
+        for period in open_periods:
+            period.ended_at = now
+            elapsed = max(now - period.started_at, timezone.timedelta(0))
+            period.duration = min(elapsed, self._get_remaining_duration_for_period_user(period))
+            period.save(update_fields=["ended_at", "duration"])
+
+    @database_sync_to_async
+    def _end_all_participant_focus_periods(self):
+        if isinstance(self.session, str):
+            self.session = FocusSession.objects.select_related("owner", "current_cycle").get(session_id=self.session)
+        now = timezone.now()
+        open_periods = (
+            FocusPeriod.objects.filter(session=self.session, ended_at__isnull=True)
+            .exclude(Q(user=self.session.owner) | Q(user__isnull=True))
+            .select_related("cycle")
+        )
+        for period in open_periods:
+            period.ended_at = now
+            elapsed = max(now - period.started_at, timezone.timedelta(0))
+            period.duration = min(elapsed, self._get_remaining_duration_for_period_user(period))
+            period.save(update_fields=["ended_at", "duration"])
+
+    def _get_remaining_duration_for_period_user(self, period):
+        completed_duration = (
+            FocusPeriod.objects.filter(
+                session=period.session,
+                cycle=period.cycle,
+                user=period.user,
+                ended_at__isnull=False,
+            )
+            .exclude(pk=period.pk)
+            .aggregate(total=Sum("duration"))["total"]
+            or timezone.timedelta(0)
+        )
+        return max(period.cycle.duration - completed_duration, timezone.timedelta(0))
+
+    @database_sync_to_async
+    def _start_focus_periods_for_authenticated_followers(self):
+        if isinstance(self.session, str):
+            self.session = FocusSession.objects.select_related("owner", "current_cycle").get(session_id=self.session)
+        if self.session.timer_state != FocusSession.TIMER_RUNNING or not self.session.current_cycle_id:
+            return
+        followers = SessionFollower.objects.filter(session=self.session, follower__isnull=False).exclude(
+            follower=self.session.owner
+        )
+        for follower in followers:
+            FocusPeriod.objects.get_or_create(
+                session=self.session,
+                user=follower.follower,
+                ended_at=None,
+                defaults={"cycle": self.session.current_cycle},
+            )
+
+    @database_sync_to_async
+    def _remove_user_from_session_followers(self, user, guest_name: str | None = None):
+        if isinstance(self.session, str):
+            self.session = FocusSession.objects.select_related("owner", "current_cycle").get(session_id=self.session)
+        if user.is_authenticated:
+            SessionFollower.objects.filter(session=self.session, follower=user).delete()
+        elif guest_name:
+            SessionFollower.objects.filter(session=self.session, username=guest_name).delete()
+
+    async def join_session(self, user, guest_name: str | None = None):
+        follower = await self._add_user_to_session_followers(user, guest_name=guest_name)
+        await self._start_participant_focus_period(user)
         return follower
 
-    async def join_session(self, user):
-        await self._add_user_to_session_followers(user)
+    async def leave_session(self, user, guest_name: str | None = None):
+        await self._end_participant_focus_period(user)
+        await self._remove_user_from_session_followers(user, guest_name=guest_name)
 
     async def get_timer_display_data(self):
         """
@@ -344,11 +475,14 @@ class AsyncTimerService:
         if next_cycle:
             self.session.current_cycle = next_cycle
             await self.session.asave()
+            await self._end_all_participant_focus_periods()
             # create a new focus period for the next cycle
             await database_sync_to_async(FocusPeriod.objects.create)(
                 session=self.session,
                 cycle=next_cycle,
+                user=self.session.owner,
             )
+            await self._start_focus_periods_for_authenticated_followers()
             return True
         else:
             # since there is no next cycle, we will stop the timer

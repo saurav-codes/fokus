@@ -1,7 +1,9 @@
 // static/js/focus_session.js
 class FocusSessionManager {
-  constructor(sessionId) {
+  constructor(sessionId, guestName = "", autoJoin = false) {
     this.sessionId = sessionId;
+    this.guestName = guestName;
+    this.autoJoin = autoJoin;
     this.remainingTime = 0;
     this.timerInterval = null;
     this.originalTitle = document.title;
@@ -74,9 +76,11 @@ class FocusSessionManager {
       // since we are already in the session
       joinSessionButton.remove();
     }
-    this.send_action_to_server(
-      { "action": "join_session"}
-    )
+    const payload = { "action": "join_session" };
+    if (this.guestName) {
+      payload.guest_name = this.guestName;
+    }
+    this.send_action_to_server(payload)
   }
 
   send_action_to_server(event_type) {
@@ -100,6 +104,9 @@ class FocusSessionManager {
     this.socket.onopen = () => {
       this.isConnecting = false;
       this.setConnectionState("connected");
+      if (this.autoJoin) {
+        this.join_session();
+      }
       while (this.pendingActions.length && this.socket.readyState === WebSocket.OPEN) {
         this.socket.send(JSON.stringify(this.pendingActions.shift()));
       }
@@ -331,13 +338,19 @@ class FocusSessionManager {
 // Initialize the FocusSessionManager when the page loads
 let focusSessionManager;
 document.addEventListener("DOMContentLoaded", (event) => {
-  const sessionId = document.getElementById("session-id").dataset.sessionId;
-  focusSessionManager = new FocusSessionManager(sessionId);
-  window.focusSessionManager = focusSessionManager;
+  const sessionElement = document.getElementById("session-id");
+  const sessionId = sessionElement.dataset.sessionId;
+  const canConnect = sessionElement.dataset.canConnect === "true";
+  const guestName = sessionElement.dataset.guestName || "";
+  const autoJoin = sessionElement.dataset.autoJoin === "true";
+  if (canConnect) {
+    focusSessionManager = new FocusSessionManager(sessionId, guestName, autoJoin);
+    window.focusSessionManager = focusSessionManager;
+  }
   setupSessionShareButton();
 
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') {
+    if (focusSessionManager && document.visibilityState === 'visible') {
       const currentTime = Date.now();
       // Convert to seconds
       const timeSinceLastSync = (currentTime - focusSessionManager.lastSyncTime) / 1000;

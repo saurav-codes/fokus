@@ -77,6 +77,7 @@ class FocusPeriod(models.Model):
     started_at = models.DateTimeField(auto_now_add=True)
     ended_at = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(default=timezone.timedelta)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="focus_periods", null=True, blank=True)
 
     def __str__(self):
         return f"Focus Period {self.pk} for {self.session.session_id}"
@@ -125,13 +126,51 @@ class FocusCycle(models.Model):
 
 
 class SessionFollower(models.Model):
-    follower = models.ForeignKey(User, on_delete=models.CASCADE, related_name="followed_sessions")
+    GUEST = "guest"
+    AUTHENTICATED = "authenticated"
+    USER_TYPE_CHOICES = [
+        (GUEST, "Guest"),
+        (AUTHENTICATED, "Authenticated"),
+    ]
+
+    follower = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="followed_sessions",
+        null=True,
+        blank=True,
+    )
     session = models.ForeignKey(FocusSession, on_delete=models.CASCADE, related_name="followers")
+    username = models.CharField(max_length=150, blank=True)
+    user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES, default=AUTHENTICATED)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("follower", "session")
         ordering = ["-joined_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["session", "follower"],
+                condition=models.Q(follower__isnull=False),
+                name="unique_authenticated_session_follower",
+            ),
+            models.UniqueConstraint(fields=["session", "username"], name="unique_session_follower_username"),
+        ]
+
+    @property
+    def display_name(self):
+        if self.username:
+            return self.username
+        if self.follower_id:
+            return self.follower.username
+        return "Guest"
+
+    def save(self, *args, **kwargs):
+        if self.follower_id:
+            self.username = self.username or self.follower.username
+            self.user_type = self.AUTHENTICATED
+        else:
+            self.user_type = self.GUEST
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.follower.username} following {self.session.session_id}"
+        return f"{self.display_name} following {self.session.session_id}"
