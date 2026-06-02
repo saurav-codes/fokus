@@ -1,37 +1,37 @@
 :root {
-    --app-bg: #f6f4ef;
-    --app-surface: #fffdfa;
-    --app-surface-muted: #ece9df;
-    --app-ink: #151816;
-    --app-muted: #62675f;
-    --app-line: rgba(21, 24, 22, 0.14);
-    --app-line-strong: rgba(21, 24, 22, 0.24);
-    --app-accent: #2f6f55;
-    --app-accent-dark: #214f3f;
-    --app-coral: #b75143;
-    --app-gold: #d7a94d;
-    --app-shadow: 0 24px 70px rgba(34, 43, 37, 0.12);
+    --app-bg: #fbfbfa;
+    --app-surface: #ffffff;
+    --app-surface-muted: #f1f1ef;
+    --app-ink: #37352f;
+    --app-muted: #787774;
+    --app-line: rgba(55, 53, 47, 0.14);
+    --app-line-strong: rgba(55, 53, 47, 0.24);
+    --app-accent: #37352f;
+    --app-accent-dark: #2f3437;
+    --app-coral: #9f6b5f;
+    --app-gold: #9b7d47;
+    --app-shadow: 0 24px 70px rgba(55, 53, 47, 0.1);
 }
 
 :root[data-theme="dark"] {
-    --app-bg: #10130f;
-    --app-surface: #181d16;
-    --app-surface-muted: #23291f;
-    --app-ink: #f2efe6;
-    --app-muted: #b7b1a6;
-    --app-line: rgba(242, 239, 230, 0.15);
-    --app-line-strong: rgba(242, 239, 230, 0.24);
-    --app-accent: #83c9a4;
-    --app-accent-dark: #a9dfbf;
-    --app-coral: #e18975;
-    --app-gold: #e3bc63;
+    --app-bg: #191919;
+    --app-surface: #202020;
+    --app-surface-muted: #2f2f2f;
+    --app-ink: #f1f1ef;
+    --app-muted: #b8b8b8;
+    --app-line: rgba(255, 255, 255, 0.14);
+    --app-line-strong: rgba(255, 255, 255, 0.24);
+    --app-accent: #f1f1ef;
+    --app-accent-dark: #ffffff;
+    --app-coral: #d9735f;
+    --app-gold: #c99a45;
     --app-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
 }
 
 body {
     background:
-        radial-gradient(circle at 16% 8%, rgba(47, 111, 85, 0.14), transparent 22rem),
-        radial-gradient(circle at 88% 18%, rgba(215, 169, 77, 0.16), transparent 20rem),
+        radial-gradient(circle at 16% 8%, rgba(55, 53, 47, 0.06), transparent 22rem),
+        radial-gradient(circle at 88% 18%, rgba(120, 119, 116, 0.08), transparent 20rem),
         var(--app-bg);
     color: var(--app-ink);
     font-family: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -39,8 +39,8 @@ body {
 
 :root[data-theme="dark"] body {
     background:
-        radial-gradient(circle at 16% 8%, rgba(131, 201, 164, 0.14), transparent 22rem),
-        radial-gradient(circle at 88% 18%, rgba(227, 188, 99, 0.12), transparent 20rem),
+        radial-gradient(circle at 16% 8%, rgba(255, 255, 255, 0.05), transparent 22rem),
+        radial-gradient(circle at 88% 18%, rgba(184, 184, 184, 0.04), transparent 20rem),
         var(--app-bg);
 }
 
@@ -56,8 +56,8 @@ body::before {
     inset: 0;
     pointer-events: none;
     background-image:
-        linear-gradient(rgba(21, 24, 22, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(21, 24, 22, 0.035) 1px, transparent 1px);
+        linear-gradient(rgba(55, 53, 47, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(55, 53, 47, 0.035) 1px, transparent 1px);
     background-size: 44px 44px;
     mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent 70%);
     -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent 70%);
@@ -469,7 +469,7 @@ body::before {
 
 .app-button--danger {
     background: var(--app-coral);
-    color: #fffdfa;
+    color: var(--app-surface);
 }
 
 .app-button--danger:hover {

@@ -12,14 +12,14 @@
     <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
     <link rel="apple-touch-icon" href="{% static 'apple-touch-icon.png' %}">
     <link rel="manifest" href="{% static 'site.webmanifest' %}">
-    <link rel="mask-icon" href="{% static 'safari-pinned-tab.svg' %}" color="#275843">
+    <link rel="mask-icon" href="{% static 'safari-pinned-tab.svg' %}" color="#37352f">
     <meta name="application-name" content="Lazyplanner Focus Timer">
     <meta name="apple-mobile-web-app-title" content="Focus Timer">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="msapplication-TileColor" content="#275843">
+    <meta name="msapplication-TileColor" content="#fbfbfa">
     <meta name="msapplication-config" content="{% static 'browserconfig.xml' %}">
-    <meta name="theme-color" content="#275843">
+    <meta name="theme-color" content="#fbfbfa">
     <meta property="og:site_name" content="Lazyplanner Focus Timer">
     <meta property="og:type" content="website">
     <meta property="og:title" content="{% block meta_title %}Lazyplanner&#x27;s Focus Timer{% endblock %}">
@@ -112,7 +112,7 @@
                 button.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
                 button.setAttribute("aria-pressed", String(isDark));
                 icon.className = isDark ? "fa-solid fa-sun" : "fa-solid fa-moon";
-                themeColor.setAttribute("content", isDark ? "#10130f" : "#275843");
+                themeColor.setAttribute("content", isDark ? "#191919" : "#fbfbfa");
             };
 
             setTheme(currentTheme(), false);
