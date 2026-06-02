@@ -232,6 +232,42 @@ def _convert_cycles_list_to_dict(cycles):
     return cycles_dict
 
 
+def _generate_fixed_interval_focus_cycles(total_time: int, focus_duration: int, break_duration: int):
+    if total_time < focus_duration:
+        return [total_time]
+
+    cycles = []
+    remaining_time = total_time
+    while remaining_time > 0:
+        focus_cycle_duration = min(focus_duration, remaining_time)
+        cycles.append(focus_cycle_duration)
+        remaining_time -= focus_cycle_duration
+
+        if remaining_time <= 0:
+            break
+
+        break_cycle_duration = min(break_duration, remaining_time)
+        cycles.append(break_cycle_duration)
+        remaining_time -= break_cycle_duration
+
+    return cycles
+
+
+def _format_generated_focus_cycle_data(focus_cycles, remaining_time, total_cycles_duration, user):
+    focus_cycles = _convert_cycles_list_to_dict(focus_cycles)
+    exact_time_after_finishing_all_cycles = datetime.datetime.now(user.timezone) + datetime.timedelta(
+        minutes=total_cycles_duration
+    )
+    exact_time_after_finishing_all_cycles_in_12_hr_format = exact_time_after_finishing_all_cycles.strftime("%I:%M %p")
+    return {
+        "total_cycles": len(focus_cycles),
+        "cycles": focus_cycles,
+        "exact_time_after_finishing_all_cycles": exact_time_after_finishing_all_cycles_in_12_hr_format,
+        "extra_time_left": remaining_time,
+        "total_minutes_distributed": total_cycles_duration,
+    }
+
+
 def generate_focus_cycle_data_based_on_technique_and_duration(
     technique: str,
     total_time: int,
@@ -263,20 +299,21 @@ def generate_focus_cycle_data_based_on_technique_and_duration(
             distribute_extra_time_to_short_cycles,
             distribute_extra_time_to_last_25_5_25_5_cycles,
         )
-        focus_cycles = _convert_cycles_list_to_dict(focus_cycles)
-        exact_time_after_finishing_all_cycles = datetime.datetime.now(user.timezone) + datetime.timedelta(
-            minutes=total_cycles_duration
-        )
-        exact_time_after_finishing_all_cycles_in_12_hr_format = exact_time_after_finishing_all_cycles.strftime(
-            "%I:%M %p"
-        )
-        return {
-            "total_cycles": len(focus_cycles),
-            "cycles": focus_cycles,
-            "exact_time_after_finishing_all_cycles": exact_time_after_finishing_all_cycles_in_12_hr_format,
-            "extra_time_left": remaining_time,
-            "total_minutes_distributed": total_cycles_duration,
-        }
+        return _format_generated_focus_cycle_data(focus_cycles, remaining_time, total_cycles_duration, user)
 
-    else:
-        raise ValueError(f"Technique {technique} not supported")
+    fixed_interval_techniques = {
+        FocusSession.POMODORO_TECHNIQUE: (25, 5),
+        FocusSession.FOCUS_52_17_TECHNIQUE: (52, 17),
+        FocusSession.FOCUS_90_TECHNIQUE: (90, 20),
+        FocusSession.FOCUS_2_HOURS_TECHNIQUE: (120, 30),
+    }
+    if technique in fixed_interval_techniques:
+        focus_duration, break_duration = fixed_interval_techniques[technique]
+        focus_cycles = _generate_fixed_interval_focus_cycles(total_time, focus_duration, break_duration)
+        return _format_generated_focus_cycle_data(focus_cycles, 0, sum(focus_cycles), user)
+
+    if technique in [FocusSession.FLOWTIME_TECHNIQUE, FocusSession.CUSTOM_TECHNIQUE]:
+        focus_cycles = [total_time]
+        return _format_generated_focus_cycle_data(focus_cycles, 0, total_time, user)
+
+    raise ValueError(f"Technique {technique} not supported")
