@@ -12,6 +12,7 @@ db.sqlite3
 .env
 
 # Virtual environment
+.venv/
 venv/
 venv_focus_timer/
 
@@ -19,6 +20,9 @@ venv_focus_timer/
 .vscode/
 .idea/
 *.DS_Store*
+._*
+logs/
+production_static_files/
 *static_files/*
 
 .zed/
