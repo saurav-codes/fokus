@@ -20,6 +20,18 @@
         --line: rgba(21, 23, 21, 0.16);
     }
 
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --paper: #10130f;
+            --ink: #f4f0e7;
+            --fern: #88caa6;
+            --mint: #234332;
+            --clay: #e18975;
+            --sun: #e3bc63;
+            --line: rgba(244, 240, 231, 0.16);
+        }
+    }
+
     body {
         background: var(--paper);
     }
@@ -44,6 +56,14 @@
         border-bottom: 1px solid var(--line);
     }
 
+    @media (prefers-color-scheme: dark) {
+        .landing-hero {
+            background:
+                radial-gradient(circle at 18% 24%, rgba(35, 67, 50, 0.95), transparent 24rem),
+                linear-gradient(135deg, #121610 0%, #18251d 48%, #2c1c18 100%);
+        }
+    }
+
     .brand-lockup {
         display: inline-flex;
         align-items: center;
@@ -53,8 +73,8 @@
         padding: 0.55rem 0.8rem;
         border: 1px solid var(--line);
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.62);
-        box-shadow: 0 12px 35px rgba(39, 88, 67, 0.08);
+        background: color-mix(in srgb, var(--paper) 62%, white);
+        box-shadow: 0 12px 35px color-mix(in srgb, var(--fern) 12%, transparent);
         font-weight: 700;
     }
 
@@ -79,7 +99,7 @@
         margin-top: 1.5rem;
         font-size: clamp(1.1rem, 1.9vw, 1.35rem);
         line-height: 1.55;
-        color: rgba(21, 23, 21, 0.78);
+        color: color-mix(in srgb, var(--ink) 78%, transparent);
     }
 
     .landing-actions {
@@ -109,12 +129,12 @@
 
     .landing-button.primary {
         background: var(--ink);
-        color: white;
+        color: var(--paper);
         box-shadow: 5px 5px 0 var(--clay);
     }
 
     .landing-button.secondary {
-        background: rgba(255, 255, 255, 0.68);
+        background: color-mix(in srgb, var(--paper) 68%, white);
         color: var(--ink);
     }
 
@@ -123,7 +143,7 @@
         align-items: center;
         gap: 0.55rem;
         margin: 1.05rem 0 0;
-        color: rgba(21, 23, 21, 0.76);
+        color: color-mix(in srgb, var(--ink) 76%, transparent);
         font-size: 0.98rem;
         font-weight: 700;
     }
@@ -142,8 +162,8 @@
         position: relative;
         border: 1px solid var(--ink);
         border-radius: 8px;
-        background: #fffdf5;
-        box-shadow: 18px 18px 0 rgba(21, 23, 21, 0.12);
+        background: color-mix(in srgb, var(--paper) 92%, white);
+        box-shadow: 18px 18px 0 color-mix(in srgb, var(--ink) 12%, transparent);
         overflow: hidden;
     }
 
@@ -182,7 +202,7 @@
         height: 0.7rem;
         border-radius: 999px;
         background: var(--clay);
-        box-shadow: 0 0 0 0 rgba(200, 99, 77, 0.5);
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--clay) 50%, transparent);
         animation: pulse 1.7s infinite;
     }
 
@@ -208,7 +228,7 @@
         padding: 0.7rem;
         border: 1px solid var(--line);
         border-radius: 8px;
-        background: rgba(247, 242, 232, 0.64);
+        background: color-mix(in srgb, var(--paper) 64%, transparent);
         font-weight: 700;
     }
 
@@ -220,7 +240,7 @@
     .cycle-track {
         height: 0.55rem;
         border-radius: 999px;
-        background: rgba(21, 23, 21, 0.11);
+        background: color-mix(in srgb, var(--ink) 11%, transparent);
         overflow: hidden;
     }
 
@@ -234,8 +254,8 @@
     .reviews-section {
         padding: clamp(2.75rem, 5vw, 5.75rem) clamp(1.25rem, 5vw, 5.5rem);
         background:
-            linear-gradient(180deg, rgba(255, 253, 245, 0.72), rgba(247, 242, 232, 0.94)),
-            #f3eadb;
+            linear-gradient(180deg, color-mix(in srgb, var(--paper) 72%, white), color-mix(in srgb, var(--paper) 94%, transparent)),
+            var(--paper);
         border-bottom: 1px solid var(--line);
     }
 
@@ -259,7 +279,7 @@
     .reviews-header p {
         max-width: 34rem;
         margin: 0;
-        color: rgba(21, 23, 21, 0.72);
+        color: color-mix(in srgb, var(--ink) 72%, transparent);
         font-size: clamp(1rem, 1.5vw, 1.12rem);
         line-height: 1.55;
     }
@@ -284,14 +304,14 @@
         padding: 0.55rem;
         border: 1px solid var(--ink);
         border-radius: 8px;
-        background: #fffdf5;
-        box-shadow: 8px 8px 0 rgba(21, 23, 21, 0.1);
+        background: color-mix(in srgb, var(--paper) 92%, white);
+        box-shadow: 8px 8px 0 color-mix(in srgb, var(--ink) 10%, transparent);
         transition: transform 180ms ease, box-shadow 180ms ease;
     }
 
     .review-card:hover {
         transform: translate(2px, 2px);
-        box-shadow: 5px 5px 0 rgba(21, 23, 21, 0.14);
+        box-shadow: 5px 5px 0 color-mix(in srgb, var(--ink) 14%, transparent);
     }
 
     .review-card img {
@@ -303,7 +323,7 @@
 
     .landing-band {
         padding: clamp(2.5rem, 5vw, 5rem) clamp(1.25rem, 5vw, 5.5rem);
-        background: #fffdf5;
+        background: color-mix(in srgb, var(--paper) 92%, white);
     }
 
     .feature-grid {
@@ -317,7 +337,7 @@
         padding: 1.35rem;
         border: 1px solid var(--line);
         border-radius: 8px;
-        background: #fbf5e9;
+        background: color-mix(in srgb, var(--paper) 78%, white);
     }
 
     .feature-card i {
@@ -333,16 +353,16 @@
     }
 
     .feature-card p {
-        color: rgba(21, 23, 21, 0.72);
+        color: color-mix(in srgb, var(--ink) 72%, transparent);
         line-height: 1.55;
     }
 
     @keyframes pulse {
         70% {
-            box-shadow: 0 0 0 0.75rem rgba(200, 99, 77, 0);
+            box-shadow: 0 0 0 0.75rem color-mix(in srgb, var(--clay) 0%, transparent);
         }
         100% {
-            box-shadow: 0 0 0 0 rgba(200, 99, 77, 0);
+            box-shadow: 0 0 0 0 color-mix(in srgb, var(--clay) 0%, transparent);
         }
     }
 
