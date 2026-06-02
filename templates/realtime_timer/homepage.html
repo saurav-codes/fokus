@@ -118,6 +118,26 @@
         color: var(--ink);
     }
 
+    .free-forever-tagline {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin: 1.05rem 0 0;
+        color: rgba(21, 23, 21, 0.76);
+        font-size: 0.98rem;
+        font-weight: 700;
+    }
+
+    .free-forever-tagline::before {
+        content: "";
+        width: 0.7rem;
+        height: 0.7rem;
+        border: 1px solid var(--ink);
+        border-radius: 999px;
+        background: var(--mint);
+        box-shadow: 2px 2px 0 var(--ink);
+    }
+
     .timer-panel {
         position: relative;
         border: 1px solid var(--ink);
@@ -211,6 +231,76 @@
         background: var(--fern);
     }
 
+    .reviews-section {
+        padding: clamp(2.75rem, 5vw, 5.75rem) clamp(1.25rem, 5vw, 5.5rem);
+        background:
+            linear-gradient(180deg, rgba(255, 253, 245, 0.72), rgba(247, 242, 232, 0.94)),
+            #f3eadb;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .reviews-header {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(16rem, 0.62fr);
+        gap: clamp(1.25rem, 4vw, 4rem);
+        align-items: end;
+        margin-bottom: clamp(1.4rem, 3vw, 2.4rem);
+    }
+
+    .reviews-header h2 {
+        max-width: 12ch;
+        margin: 0;
+        font-family: "Fraunces", Georgia, serif;
+        font-size: clamp(2.35rem, 5vw, 4.8rem);
+        line-height: 0.92;
+        letter-spacing: 0;
+    }
+
+    .reviews-header p {
+        max-width: 34rem;
+        margin: 0;
+        color: rgba(21, 23, 21, 0.72);
+        font-size: clamp(1rem, 1.5vw, 1.12rem);
+        line-height: 1.55;
+    }
+
+    .review-wall {
+        display: grid;
+        grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+        gap: clamp(0.8rem, 2vw, 1.25rem);
+        align-items: start;
+    }
+
+    .review-column {
+        display: grid;
+        gap: clamp(0.8rem, 2vw, 1.25rem);
+    }
+
+    .review-column:last-child {
+        margin-top: clamp(1.5rem, 5vw, 4rem);
+    }
+
+    .review-card {
+        padding: 0.55rem;
+        border: 1px solid var(--ink);
+        border-radius: 8px;
+        background: #fffdf5;
+        box-shadow: 8px 8px 0 rgba(21, 23, 21, 0.1);
+        transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .review-card:hover {
+        transform: translate(2px, 2px);
+        box-shadow: 5px 5px 0 rgba(21, 23, 21, 0.14);
+    }
+
+    .review-card img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 5px;
+    }
+
     .landing-band {
         padding: clamp(2.5rem, 5vw, 5rem) clamp(1.25rem, 5vw, 5.5rem);
         background: #fffdf5;
@@ -265,6 +355,15 @@
         .feature-grid {
             grid-template-columns: 1fr;
         }
+
+        .reviews-header,
+        .review-wall {
+            grid-template-columns: 1fr;
+        }
+
+        .review-column:last-child {
+            margin-top: 0;
+        }
     }
 
     @media (max-width: 560px) {
@@ -315,6 +414,7 @@
                     </a>
                 {% endif %}
             </div>
+            <p class="free-forever-tagline">Fully free forever.</p>
         </div>
 
         <div class="timer-panel" aria-label="Focus session preview">
@@ -349,6 +449,37 @@
             </div>
         </div>
     </div>
+
+    <section class="reviews-section" aria-labelledby="reviews-title">
+        <div class="reviews-header">
+            <h2 id="reviews-title">Study timer reviews</h2>
+            <p>Real notes from students using Lazyplanner to turn long sessions into calmer, shared focus blocks.</p>
+        </div>
+        <div class="review-wall">
+            <div class="review-column">
+                <figure class="review-card">
+                    <img src="{% static 'reviews/rev1.jpg' %}" alt="Lazyplanner Focus Timer review 1" loading="lazy" decoding="async">
+                </figure>
+                <figure class="review-card">
+                    <img src="{% static 'reviews/rev2.1.jpg' %}" alt="Lazyplanner Focus Timer review 2" loading="lazy" decoding="async">
+                </figure>
+                <figure class="review-card">
+                    <img src="{% static 'reviews/rev2.2.jpg' %}" alt="Lazyplanner Focus Timer review 3" loading="lazy" decoding="async">
+                </figure>
+            </div>
+            <div class="review-column">
+                <figure class="review-card">
+                    <img src="{% static 'reviews/rev3.jpg' %}" alt="Lazyplanner Focus Timer review 4" loading="lazy" decoding="async">
+                </figure>
+                <figure class="review-card">
+                    <img src="{% static 'reviews/rev4.jpg' %}" alt="Lazyplanner Focus Timer review 5" loading="lazy" decoding="async">
+                </figure>
+                <figure class="review-card">
+                    <img src="{% static 'reviews/rev5.jpg' %}" alt="Lazyplanner Focus Timer review 6" loading="lazy" decoding="async">
+                </figure>
+            </div>
+        </div>
+    </section>
 
     <div class="landing-band">
         <div class="feature-grid">
