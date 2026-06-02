@@ -19,7 +19,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path("control-room-focus1/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("", include("apps.realtime_timer.urls")),
 ]
