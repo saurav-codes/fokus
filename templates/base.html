@@ -33,6 +33,7 @@
     <meta name="twitter:title" content="{% block twitter_title %}Lazyplanner&#x27;s Focus Timer{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Create shareable live focus sessions with a simple timer for deep work, study, and co-working.{% endblock %}">
     <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'og-image.png' %}">
+    {% block early_head_js %}{% endblock %}
     <script>
         (() => {
             const theme = localStorage.getItem("theme");

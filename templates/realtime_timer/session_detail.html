@@ -7,6 +7,12 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{% static 'css/focus_app.css' %}">
 {% endblock extra_head %}
+{% block early_head_js %}
+<script>
+  window.HACK_TIMER_WORKER_URL = "{% static 'js/hack_timer_worker.js' %}";
+</script>
+<script src="{% static 'js/hack_timer.js' %}"></script>
+{% endblock early_head_js %}
 {% block main_class %}app-main{% endblock main_class %}
 {% block header %}
   {% with active_page="timer" %}
@@ -107,11 +113,7 @@
       </aside>
     </div>
   </div>
-  <script>
-    window.HACK_TIMER_WORKER_URL = "{% static 'js/hack_timer_worker.js' %}";
-  </script>
   <script src="{% static 'js/local_datetime.js' %}" defer></script>
-  <script src="{% static 'js/hack_timer.js' %}" defer></script>
   <script src="{% static 'js/focus_session.js' %}" defer></script>
 </section>
 {% endblock content %}

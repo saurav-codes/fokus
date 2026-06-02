@@ -46,6 +46,23 @@ def test_timer_javascript_does_not_reload_page_on_socket_close():
     assert "window.focusSessionManager" in script
 
 
+def test_hack_timer_loads_before_other_javascript_and_uses_static_worker():
+    base_template = open("templates/base.html").read()
+    session_template = open("templates/realtime_timer/session_detail.html").read()
+    hack_timer_script = open("assets/js/hack_timer.js").read()
+    worker_script = Path("assets/js/hack_timer_worker.js")
+
+    assert "{% block early_head_js %}{% endblock %}" in base_template
+    assert base_template.index("{% block early_head_js %}{% endblock %}") < base_template.index("<script>")
+    assert 'window.HACK_TIMER_WORKER_URL = "{% static \'js/hack_timer_worker.js\' %}";' in session_template
+    assert '<script src="{% static \'js/hack_timer.js\' %}"></script>' in session_template
+    assert '<script src="{% static \'js/hack_timer.js\' %}" defer></script>' not in session_template
+    assert session_template.index("window.HACK_TIMER_WORKER_URL") < session_template.index("js/hack_timer.js")
+    assert "window.HACK_TIMER_WORKER_URL || \"hack_timer_worker.js\"" in hack_timer_script
+    assert "new Worker(workerScript)" in hack_timer_script
+    assert worker_script.exists()
+
+
 def test_cycle_buttons_are_plain_client_side_controls():
     template = open("templates/realtime_timer/partials/_focus_session_form.html").read()
 
