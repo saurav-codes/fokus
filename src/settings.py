@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,12 +16,19 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY and IS_TESTING:
     SECRET_KEY = "test-secret-key"
+if not SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY must be set.")
 
 DEBUG = os.getenv("DEBUG", "False").lower() in {"1", "true", "yes", "on"}
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
+ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()]
+if DEBUG or IS_TESTING:
+    ALLOWED_HOSTS += ["localhost", "127.0.0.1", "[::1]", "testserver"]
+if not DEBUG and not IS_TESTING and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured("ALLOWED_HOSTS must be set when DEBUG is False.")
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -74,12 +82,23 @@ ASGI_APPLICATION = "src.asgi.application"
 REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_URL = os.getenv("REDIS_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/0")
+REDIS_SOCKET_TIMEOUT = float(os.getenv("REDIS_SOCKET_TIMEOUT", "30"))
+REDIS_SOCKET_CONNECT_TIMEOUT = float(os.getenv("REDIS_SOCKET_CONNECT_TIMEOUT", "5"))
+REDIS_CLIENT_KWARGS = {
+    "socket_timeout": REDIS_SOCKET_TIMEOUT,
+    "socket_connect_timeout": REDIS_SOCKET_CONNECT_TIMEOUT,
+}
 
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(REDIS_HOST, REDIS_PORT)],
+            "hosts": [
+                {
+                    "address": REDIS_URL,
+                    **REDIS_CLIENT_KWARGS,
+                }
+            ],
         },
     },
 }
@@ -110,7 +129,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "Asia/Kolkata"
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -171,6 +190,38 @@ SILENCED_SYSTEM_CHECKS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [origin for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if origin]
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False" if DEBUG or IS_TESTING else "True").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "0" if DEBUG or IS_TESTING else "31536000"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "False").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "False").lower() in {"1", "true", "yes", "on"}
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "False" if DEBUG or IS_TESTING else "True").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "False" if DEBUG or IS_TESTING else "True").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SECURE_REFERRER_POLICY = "same-origin"
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 

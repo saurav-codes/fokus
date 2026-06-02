@@ -2,16 +2,13 @@
 class FocusSessionManager {
   constructor(sessionId) {
     this.sessionId = sessionId;
-    const websocketProtocol = window.location.protocol === "https:" ? "wss" : "ws";
-    this.socket = new WebSocket(
-      `${websocketProtocol}://${window.location.host}/ws/focus_session/${sessionId}/`,
-    );
-    this.socket.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
-    this.socket.onclose = (e) => this.reloadWindowAfterDelay();
     this.remainingTime = 0;
     this.timerInterval = null;
     this.originalTitle = document.title;
     this.lastSyncTime = Date.now();
+    this.pendingActions = [];
+    this.isConnecting = false;
+    this.connectSocket();
   }
 
   // *****************************************
@@ -52,6 +49,7 @@ class FocusSessionManager {
   }
 
   stopTimer() {
+    this.stopClientSideTimer();
     this.send_action_to_server(
       { "action": "stop_timer" }
     )
@@ -82,17 +80,39 @@ class FocusSessionManager {
   }
 
   send_action_to_server(event_type) {
-    this.socket.send(JSON.stringify(event_type));
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(event_type));
+      return;
+    }
+    this.pendingActions.push(event_type);
+    this.connectSocket();
   }
 
-  reloadWindowAfterDelay() {
-    setTimeout(this.reloadWindow, 2000);
-  }
-
-  reloadWindow() {
-    // TODO: instead show a popup
-    console.log("connection to server is dropped so reloading page");
-    location.reload();
+  connectSocket() {
+    if (this.isConnecting || (this.socket && this.socket.readyState === WebSocket.OPEN)) {
+      return;
+    }
+    this.isConnecting = true;
+    const websocketProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+    this.socket = new WebSocket(
+      `${websocketProtocol}://${window.location.host}/ws/focus_session/${this.sessionId}/`,
+    );
+    this.socket.onopen = () => {
+      this.isConnecting = false;
+      this.setConnectionState("connected");
+      while (this.pendingActions.length && this.socket.readyState === WebSocket.OPEN) {
+        this.socket.send(JSON.stringify(this.pendingActions.shift()));
+      }
+    };
+    this.socket.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
+    this.socket.onclose = () => {
+      this.isConnecting = false;
+      this.stopClientSideTimer();
+      this.setConnectionState("disconnected");
+    };
+    this.socket.onerror = () => {
+      this.setConnectionState("disconnected");
+    };
   }
 
   display_updated_timer_data(data) {
@@ -113,13 +133,17 @@ class FocusSessionManager {
 
       // Update current cycle information
       const currentCycleElement = document.getElementById('current-cycle');
-      currentCycleElement.textContent = `Current Cycle: ${timerDisplayData.current_cycle.type} - ${this.formatTime(timerDisplayData.current_cycle.duration_seconds)}`;
+      currentCycleElement.textContent = `${timerDisplayData.current_cycle.type} cycle - ${this.formatTime(timerDisplayData.current_cycle.duration_seconds)}`;
 
       // Update focus cycles list
       this.update_focus_cycles_list(timerDisplayData);
 
     } else {
-      document.getElementById("focus-session-container").innerHTML = "<h1>Session Completed</h1>";
+      document.getElementById("focus-session-container").innerHTML = `
+        <div class="session-complete">
+          <h1>Session complete</h1>
+          <p>The focus room is finished.</p>
+        </div>`;
     }
   }
 
@@ -169,7 +193,7 @@ class FocusSessionManager {
     const remainingTimeElement = document.getElementById('remaining-time');
     if (remainingTimeElement) {
       let formattedTime = this.formatTime(seconds);
-      remainingTimeElement.textContent = `Remaining Time: ${formattedTime}`;
+      remainingTimeElement.textContent = formattedTime;
     }
   }
 
@@ -182,11 +206,25 @@ class FocusSessionManager {
     document.title = this.originalTitle;
   }
 
+  setConnectionState(state) {
+    const currentCycleElement = document.getElementById('current-cycle');
+    if (currentCycleElement && state === "disconnected") {
+      currentCycleElement.textContent = "Connection paused. Controls will retry.";
+    }
+  }
+
   update_will_finish_at_display(data) {
     const willFinishAtElement = document.getElementById('will-finish-at');
     if (willFinishAtElement) {
-      willFinishAtElement.textContent = `Session will finish at: ${data.will_finish_at_timestamp}`;
+      willFinishAtElement.textContent = `Session will finish at: ${this.formatUtcDateTime(data.will_finish_at_timestamp)}`;
     }
+  }
+
+  formatUtcDateTime(value) {
+    if (window.FocusTimerDateTime) {
+      return window.FocusTimerDateTime.formatUtcDateTime(value);
+    }
+    return new Date(value).toLocaleString();
   }
 
   update_focus_cycles_list(timerDisplayData) {
@@ -194,13 +232,33 @@ class FocusSessionManager {
     focusCyclesListElement.innerHTML = ''; // Clear existing content
     Object.entries(timerDisplayData.focus_cycles).forEach(([order, cycle]) => {
       const cycleElement = document.createElement('div');
-      let completed_cycle_prefix = "ᛜ";
+      cycleElement.className = "timer-cycle-row upcoming";
+      let statusText = "UP";
       if (cycle.is_completed) {
-        completed_cycle_prefix = "✅";
+        cycleElement.className = "timer-cycle-row completed";
+        statusText = "OK";
       } else if (cycle.order == timerDisplayData.current_cycle.order) {
-        completed_cycle_prefix = "👉";
+        cycleElement.className = "timer-cycle-row current";
+        statusText = "NOW";
       }
-      cycleElement.textContent = `${completed_cycle_prefix} Cycle ${order}: ${cycle.type} - ${this.formatTime(cycle.duration_seconds)}`;
+      const statusElement = document.createElement('span');
+      statusElement.className = "timer-cycle-row__status";
+      statusElement.textContent = statusText;
+
+      const copyElement = document.createElement('div');
+      const titleElement = document.createElement('strong');
+      titleElement.textContent = `Cycle ${order}`;
+      const metaElement = document.createElement('span');
+      metaElement.textContent = `${cycle.type} - ${this.formatTime(cycle.duration_seconds)}`;
+      copyElement.appendChild(titleElement);
+      copyElement.appendChild(metaElement);
+
+      const durationElement = document.createElement('span');
+      durationElement.textContent = this.formatTime(cycle.duration_seconds);
+
+      cycleElement.appendChild(statusElement);
+      cycleElement.appendChild(copyElement);
+      cycleElement.appendChild(durationElement);
       focusCyclesListElement.appendChild(cycleElement);
     });
   }
@@ -234,13 +292,37 @@ class FocusSessionManager {
   update_session_followers_list(data) {
     const followersContainer = document.getElementById('session-followers-container');
     if (followersContainer) {
-      followersContainer.innerHTML = '<h3>Session Followers</h3>';
-      followersContainer.innerHTML += '<ul>';
+      followersContainer.innerHTML = '';
+      const headerElement = document.createElement('div');
+      headerElement.className = 'side-panel__head';
+      const titleElement = document.createElement('h2');
+      titleElement.textContent = 'Followers';
+      const countElement = document.createElement('span');
+      countElement.textContent = data.followers.length.toString();
+      headerElement.appendChild(titleElement);
+      headerElement.appendChild(countElement);
+
+      const listElement = document.createElement('ul');
+      listElement.className = 'followers-list';
       data.followers.forEach(follower => {
-        const joinedDate = new Date(follower.joined_at).toLocaleString();
-        followersContainer.innerHTML += `<li>${follower.username} (Joined: ${joinedDate})</li>`;
+        const joinedDate = this.formatUtcDateTime(follower.joined_at);
+        const itemElement = document.createElement('li');
+        const nameElement = document.createElement('strong');
+        nameElement.textContent = follower.username;
+        const dateElement = document.createElement('span');
+        dateElement.textContent = `Joined ${joinedDate}`;
+        itemElement.appendChild(nameElement);
+        itemElement.appendChild(dateElement);
+        listElement.appendChild(itemElement);
       });
-      followersContainer.innerHTML += '</ul>';
+      if (!data.followers.length) {
+        const emptyElement = document.createElement('li');
+        emptyElement.className = 'empty-state';
+        emptyElement.textContent = 'No followers yet.';
+        listElement.appendChild(emptyElement);
+      }
+      followersContainer.appendChild(headerElement);
+      followersContainer.appendChild(listElement);
     }
   }
 
@@ -251,6 +333,7 @@ let focusSessionManager;
 document.addEventListener("DOMContentLoaded", (event) => {
   const sessionId = document.getElementById("session-id").dataset.sessionId;
   focusSessionManager = new FocusSessionManager(sessionId);
+  window.focusSessionManager = focusSessionManager;
   setupSessionShareButton();
 
   document.addEventListener('visibilitychange', function () {
