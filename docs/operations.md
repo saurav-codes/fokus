@@ -78,18 +78,18 @@ The app is served by the `focus-lazyplanner` nginx site and proxied to `127.0.0.
 
 ## Deploy
 
-From local repo:
+Push local changes first:
 
 ```bash
-tar --exclude=.git --exclude=.venv --exclude=venv --exclude=venv_focus_timer --exclude=db.sqlite3 --exclude=production_static_files -czf /tmp/focus-timer-v-deploy.tar.gz .
-scp -o ProxyJump=root@147.182.201.157 /tmp/focus-timer-v-deploy.tar.gz focususer@168.144.84.148:/home/focususer/focus-timer-v-deploy.tar.gz
+git push origin main
 ```
 
 On VPS:
 
 ```bash
 cd /home/focususer/focus-timer-v
-tar -xzf /home/focususer/focus-timer-v-deploy.tar.gz -C /home/focususer/focus-timer-v
+git status
+git pull origin main
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python manage.py check
 .venv/bin/python manage.py migrate --noinput
@@ -97,14 +97,14 @@ tar -xzf /home/focususer/focus-timer-v-deploy.tar.gz -C /home/focususer/focus-ti
 sudo systemctl restart focus-timer-v-web.service
 sudo nginx -t
 sudo systemctl reload nginx
-rm -f /home/focususer/focus-timer-v-deploy.tar.gz
 ```
 
 ## Rollback
 
-There is no formal release directory yet. For now, redeploy the previous git commit and restart:
+Checkout the previous commit and restart:
 
 ```bash
 git checkout <previous-commit>
-# run Deploy steps
+.venv/bin/python manage.py collectstatic --noinput
+sudo systemctl restart focus-timer-v-web.service
 ```
