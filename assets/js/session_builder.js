@@ -70,15 +70,29 @@
   function updateCycleSummary(table) {
     const rows = getCycleRows(table);
     const cycles = rows.map(readCycle);
+    const totalMinutesValue = cycles.reduce((sum, cycle) => sum + cycle.duration, 0);
     const totalCycles = document.getElementById("total_cycles");
     const totalMinutes = document.getElementById("total_minutes_distributed");
     if (totalCycles) {
       totalCycles.textContent = rows.length.toString();
     }
     if (totalMinutes) {
-      totalMinutes.textContent = cycles.reduce((sum, cycle) => sum + cycle.duration, 0).toString();
+      totalMinutes.textContent = totalMinutesValue.toString();
     }
+    updateFinishTime(table, totalMinutesValue);
     updatePatternPreview(cycles);
+  }
+
+  function updateFinishTime(table, totalMinutes) {
+    const container = table?.closest(".cycle-workbench") || document;
+    const finishTime = container.querySelector("[data-cycle-finish-time]");
+    if (!finishTime) {
+      return;
+    }
+    finishTime.dataset.utcDatetime = new Date(Date.now() + totalMinutes * 60 * 1000).toISOString();
+    if (window.FocusTimerDateTime?.formatUtcDateTime) {
+      finishTime.textContent = window.FocusTimerDateTime.formatUtcDateTime(finishTime.dataset.utcDatetime);
+    }
   }
 
   function updatePatternPreview(cycles) {

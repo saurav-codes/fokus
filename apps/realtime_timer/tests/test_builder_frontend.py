@@ -54,6 +54,16 @@ def test_cycle_buttons_are_plain_client_side_controls():
     assert "hx-get" not in template
 
 
+def test_generated_finish_time_updates_when_cycles_are_edited():
+    template = open("templates/realtime_timer/partials/_focus_session_form.html").read()
+    script = open("assets/js/session_builder.js").read()
+
+    assert "data-cycle-finish-time" in template
+    assert "updateFinishTime(table, totalMinutesValue)" in script
+    assert "Date.now() + totalMinutes * 60 * 1000" in script
+    assert "FocusTimerDateTime.formatUtcDateTime" in script
+
+
 def test_dev_runserver_uses_asgi_for_websockets():
     assert "daphne" in settings.INSTALLED_APPS
     assert settings.INSTALLED_APPS.index("daphne") < settings.INSTALLED_APPS.index("django.contrib.staticfiles")
