@@ -48,16 +48,12 @@
         min-height: 74vh;
         align-items: center;
         padding: clamp(3rem, 7vw, 6.5rem) clamp(1.25rem, 5vw, 5.5rem);
-        background:
-            radial-gradient(circle at 18% 24%, rgba(55, 53, 47, 0.08), transparent 24rem),
-            linear-gradient(135deg, #fbfbfa 0%, #f7f6f3 48%, #eeede9 100%);
+        background: var(--paper);
         border-bottom: 1px solid var(--line);
     }
 
     :root[data-theme="dark"] .landing-hero {
-        background:
-            radial-gradient(circle at 18% 24%, rgba(255, 255, 255, 0.06), transparent 24rem),
-            linear-gradient(135deg, #191919 0%, #202020 48%, #151515 100%);
+        background: var(--paper);
     }
 
     .brand-lockup {
@@ -167,7 +163,7 @@
         content: "";
         display: block;
         height: 1rem;
-        background: repeating-linear-gradient(90deg, var(--fern) 0 3.5rem, var(--sun) 3.5rem 7rem, var(--clay) 7rem 10.5rem);
+        background: var(--ink);
         border-bottom: 1px solid var(--ink);
     }
 
@@ -249,9 +245,7 @@
 
     .reviews-section {
         padding: clamp(2.75rem, 5vw, 5.75rem) clamp(1.25rem, 5vw, 5.5rem);
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--paper) 72%, white), color-mix(in srgb, var(--paper) 94%, transparent)),
-            var(--paper);
+        background: var(--paper);
         border-bottom: 1px solid var(--line);
     }
 
