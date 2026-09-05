@@ -25,7 +25,7 @@ health_url = "http://127.0.0.1:8000/"
 dist = "production_static_files"
 
 [[frontend.static]]
-prefix = "/static/"
+prefix = "static"
 dist = "production_static_files"
 
 [[domains]]
