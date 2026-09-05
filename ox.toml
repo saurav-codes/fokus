@@ -21,6 +21,10 @@ build = ["uv", "run", "python", "manage.py", "collectstatic", "--noinput"]
 migrate = ["uv", "run", "python", "manage.py", "migrate", "--noinput"]
 health_url = "http://127.0.0.1:8000/"
 
+[frontend]
+dist = "production_static_files"
+api_paths = ["/"]
+
 [[frontend.static]]
 prefix = "/static/"
 dist = "production_static_files"
