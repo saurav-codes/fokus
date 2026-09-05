@@ -29,7 +29,7 @@ prefix = "/static"
 dist = "production_static_files"
 
 [[domains]]
-name = "focus.lazyplanner.app"
-tls = true
+name = "64.23.149.124"
+tls = false
 process = "web"
 websockets = true
