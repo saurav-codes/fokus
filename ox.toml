@@ -29,7 +29,7 @@ prefix = "/static"
 dist = "production_static_files"
 
 [[domains]]
-name = "64.23.148.85"
+name = "134.199.213.249"
 tls = false
 process = "web"
 websockets = true
