@@ -1,35 +1,25 @@
-runtime = "python"
-framework = "django"
-package_manager = "uv"
-port = 8000
-environment_file = "/etc/ox/apps/focus-timer.env"
-writable_paths = ["/srv/ox/focus-timer/data"]
+# focus-timer on the ox1 engine: Django + daphne (websockets), a scheduler
+# worker, redis, SQLite in the data dir, collectstatic served by Caddy.
 
-[[processes]]
-name = "web"
-command = "uv run daphne -b 127.0.0.1 -p {port} src.asgi:application"
-depends_on = ["redis"]
+[app]
+start  = "uv run daphne -b 127.0.0.1 -p $PORT src.asgi:application"
+health = "/"
 
-[[processes]]
-name = "scheduler"
-command = "uv run python manage.py redis_scheduler"
-depends_on = ["redis", "web"]
+[static]
+paths = { "/static" = "production_static_files" }
 
-[deploy]
-install = ["uv", "sync", "--frozen", "--no-dev"]
-build = ["uv", "run", "python", "manage.py", "collectstatic", "--noinput"]
-migrate = ["uv", "run", "python", "manage.py", "migrate", "--noinput"]
-health_url = "http://127.0.0.1:8000/"
+[build]
+commands = [
+  "uv sync --frozen --no-dev",
+  "uv run python manage.py collectstatic --noinput",
+]
+migrate = "uv run python manage.py migrate --noinput"
 
-[frontend]
-dist = "production_static_files"
+[workers]
+scheduler = "uv run python manage.py redis_scheduler"
 
-[[frontend.static]]
-prefix = "/static"
-dist = "production_static_files"
+[services]
+redis = {}
 
-[[domains]]
-name = "134.199.213.249"
-tls = false
-process = "web"
-websockets = true
+[storage]
+keep = ["db", "logs"]
