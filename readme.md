@@ -1,4 +1,4 @@
-Focus Timer has a public root landing page before login. The landing page does not use the shared app header; account entry points are the hero login/signup CTAs.
+Focus Timer ( multi user timer ) has a public root landing page before login. The landing page does not use the shared app header; account entry points are the hero login/signup CTAs.
 
 ## Development
 
