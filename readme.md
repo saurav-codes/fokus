@@ -214,8 +214,9 @@ was attempted or validated here; `cap add` / `cap sync` are green without it.
 
 The app qualifies for F-Droid (MIT licensed, OSS dependencies). Points to note:
 
-- F-Droid builds from source on its own farm; push a signed tag and submit a
-  metadata YAML to `fdroiddata` (the GitLab package database).
+- F-Droid builds from source on its own farm and signs the result with its own
+  key; you push a version tag on the repo and submit a metadata YAML to
+  `fdroiddata` (the GitLab package database).
 - Since the APK is a thin WebView shell over `https://fokus.lazyplanner.app`,
   F-Droid will flag it as "depends on a non-free/none-free network" — allowed,
   but read the AntiFeatures it lists.
