@@ -1,28 +1,6 @@
-
-# Python
-__pycache__/
-*.py[cod]
-
-# Django
-*.log
-local_settings.py
-db.sqlite3
-
-# Environment variables
+node_modules/
+data/
 .env
-
-# Virtual environment
-.venv/
-venv/
-venv_focus_timer/
-
-# IDE
-.vscode/
-.idea/
-*.DS_Store*
-._*
-logs/
-production_static_files/
-*static_files/*
-
-.zed/
+*.log
+.codegraph/
+web/dist/

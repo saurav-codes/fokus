@@ -1,0 +1,16 @@
+const int = (value: string | undefined, dflt: number): number => {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : dflt;
+};
+
+export const env = {
+  port: int(process.env.PORT, 8010),
+  databasePath: process.env.DATABASE_PATH ?? "./data/db.sqlite3",
+  sessionSecret:
+    process.env.SESSION_SECRET ??
+    (process.env.NODE_ENV === "production"
+      ? (() => {
+          throw new Error("SESSION_SECRET must be set in production");
+        })()
+      : "dev-insecure-secret"),
+};

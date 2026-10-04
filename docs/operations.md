@@ -1,81 +1,55 @@
-# Focus Timer Operations
+# fokus operations
 
 ## Production
 
 - URL: `https://focus.lazyplanner.app`
-- Platform: self-hosted OpenShip
+- Platform: self-hosted OpenShip (ox1 engine), no Docker
 - DigitalOcean droplet: `ubuntu-c-4-sfo3` (`209.38.69.226`)
 - OpenShip project: `proj_fnIvW87_-LiNqvv5`
 - Repository: `saurav-codes/focus-timer-v`, branch `main`
 
-OpenShip deploys the repository's `docker-compose.yml`. The stack contains:
-
-- `redis`: Channels fanout and the timer scheduler queue
-- `migrate`: one-shot Django migrations and static collection
-- `web`: Daphne ASGI server
-- `scheduler`: the `redis_scheduler` management command
-- `nginx`: static files and HTTP/WebSocket proxying
-
-The SQLite database, logs, Redis state, and collected static files live in
-named Docker volumes. Production SQLite data is mounted at
-`/data/db.sqlite3`; it is not stored in the image or Git checkout.
+Ox deploys the repository's `ox.toml`. The process is one Bun process:
+`bun src/index.ts` serving API, WebSockets, and the SPA from `web/dist`.
+SQLite lives in `./data/db.sqlite3` on the ox storage area. Schema
+migrations and the sweeper run in that one process at boot.
 
 ## Configuration
 
-Copy `.env.sample` for local use. Production variables are managed in
-OpenShip and must not be committed.
-
-Required variables:
+Required:
 
 ```env
-SECRET_KEY=<django-secret>
-DEBUG=False
-ALLOWED_HOSTS=focus.lazyplanner.app
-CSRF_TRUSTED_ORIGINS=https://focus.lazyplanner.app
+SESSION_SECRET=<long random string>
 ```
 
-Compose sets these container-only values:
+Ox sets `PORT` and the app reads it; local `.env` carries `PORT`,
+`DATABASE_PATH`, `SESSION_SECRET`.
 
-```env
-DATABASE_PATH=/data/db.sqlite3
-LOG_DIR=/data/logs
-REDIS_URL=redis://redis:6379/0
-```
-
-## Local Verification
+## Local verification
 
 ```bash
-docker compose config --quiet
-docker compose build
-docker compose up -d
-docker compose ps
-uv run ruff check .
-uv run pytest
+cp .env.sample .env
+bun install
+bun test
+bun run lint
+bun run build:web
+bun src/index.ts            # http://127.0.0.1:8010/healthz
 ```
-
-The nginx health check exercises Django through the same forwarded-host and
-forwarded-protocol headers used by OpenShip.
 
 ## Deployment
 
-Push a tested commit to `main`. OpenShip auto-deploys the Compose project from
-GitHub. A successful release has:
+Push a tested commit to `main`. Ox auto-deploys from GitHub: it runs
+`bun install --frozen`, builds the SPA with `bun --cwd web run build`, and
+starts `bun src/index.ts`. A successful release is one process where
+`GET /healthz` returns `{"ok":true}` and a WebSocket upgrade to
+`/ws/session/<uuid>` connects.
 
-- `redis`, `web`, `scheduler`, and `nginx` running;
-- `migrate` exited with status 0;
-- `web`, `redis`, and `nginx` healthy;
-- exactly one scheduler container.
+## SQLite backup and restore
 
-Check both HTTP and WebSocket behavior after every production deployment.
-
-## SQLite Backup And Restore
-
-OpenShip-managed S3 backups are intentionally not configured yet. Until an S3
-backup resource is attached, create an application-consistent SQLite copy
-with Python's standard library:
+OpenShip-managed S3 backups are not configured. Until then, make an
+application-consistent copy with the standard library:
 
 ```bash
-python - <<'PY'
+python3 - <<'PY'
 import sqlite3
 
 source = sqlite3.connect("/data/db.sqlite3")
@@ -88,39 +62,31 @@ backup.close()
 PY
 ```
 
-Stop `web` and `scheduler` before replacing `/data/db.sqlite3`. Verify the
-backup checksum and `PRAGMA integrity_check`, copy it into the `app_data`
-volume, then start `migrate`, `web`, `scheduler`, and `nginx`.
+## 2026-10 rewrite: Django to Bun, passwordless
 
-## 2026-07-31 VPS Migration
+From Django + Channels + Redis + Daphne + scheduler + nginx + Docker
+compose to one Bun process. Auth is passwordless: the first session a
+visitor creates mints an anonymous cookie identity (`fokus_session`),
+which makes them its owner. The web SPA is Vue 3 in `web/`, built at deploy
+time, served from the same process. Design language is taken from the ox
+landing page (vpsctl project).
 
-The final VPS database was copied after stopping the legacy web and scheduler:
+### Migrating the legacy Django database
 
-- archive: `focus_timer_20260731T045136Z.sqlite3`
-- SHA-256:
-  `242e52d277a3afa6e4b1c07c0bcacfa12e20be2213a2e9b51b758d42ca9d7826`
-- integrity check: `ok`
-- OpenShip deployment: `dep_lQ-bLL3Jk2H3SdeE`
+The legacy production database uses Django tables. Import it with:
 
-Source row counts:
+```bash
+DATABASE_PATH=/data/db.sqlite3 SESSION_SECRET=<prod secret> \
+  bun scripts/import-legacy-django-db.ts /path/to/legacy.sqlite3
+```
 
-| Relation | Rows |
-| --- | ---: |
-| Users | 1 |
-| Focus sessions | 4 |
-| Focus cycles | 12 |
-| Focus periods | 12 |
-| Session followers | 0 |
+The importer is idempotent, maps users (their old username becomes the
+`handle`), sessions, cycles (with best-effort elapsed from legacy focus
+periods), and followers. There is no password migration: identities are
+now anonymous cookies, so nobody needs to recover access.
 
-The destination counts matched every source count. The Compose migration
-service exited successfully; Redis, web, and nginx were healthy; and the
-scheduler had exactly one running instance. Both direct-origin and Cloudflare
-HTTPS returned 200, and the landing and login pages rendered successfully in
-Brave.
+### Historical: 2026-07-31 VPS migration
 
-The legacy systemd, host nginx, host Redis, and SQLite deployment was removed
-only after these OpenShip counts and production acceptance checks matched.
-The audited `lazyplanner-do` droplet (`574573666`, `168.144.84.148`) was
-deleted on 2026-07-31. Temporary migration archives were then removed from the
-OpenShip host; verified local copies are retained until the planned S3 backup
-resource is available.
+Pre-rewrite VPS archive for reference: `focus_timer_20260731T045136Z.sqlite3`,
+SHA-256 `242e52d277a3afa6e4b1c07c0bcacfa12e20be2213a2e9b51b758d42ca9d7826`,
+integrity `ok`, rows: 1 user, 4 sessions, 12 cycles, 12 periods, 0 followers.

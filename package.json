@@ -1,0 +1,23 @@
+{
+  "name": "fokus",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "test": "bun test",
+    "lint": "biome check .",
+    "dev:web": "bun --cwd web run dev",
+    "build:web": "bun --cwd web run build"
+  },
+  "dependencies": {
+    "hono": "^4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2",
+    "@types/bun": "latest"
+  }
+}

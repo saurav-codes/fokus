@@ -1,73 +1,181 @@
-Focus Timer ( multi user timer ) has a public root landing page before login. The landing page does not use the shared app header; account entry points are the hero login/signup CTAs.
+# fokus
+
+A co-focus shared timer: you build a session from a focus technique, share
+the room link, and everyone watches the same authoritative server-side
+countdown together. Anyone with the link joins with just a display name,
+and rooms stay isolated to their own participants and timer.
+
+This is the hosted backend plus a Vue 3 SPA (`web/`), designed to be the
+same surface that future Android and Windows native apps will use.
+
+## Why the rewrite
+
+The old stack was Django + Channels + Daphne + Redis + a Redis zset
+scheduler worker + nginx, six cooperating services to tick a countdown.
+Chrome throttled background-tab timers and the `hack_timer.js` web-worker
+hack only partially worked, so the old timers drifted and the server made
+expensive aggregation queries to answer "how much time is left". Now one
+Bun process serves API, websockets, and the SPA.
+
+## The core idea: never tick
+
+A countdown must not be accumulated by anything, in the browser or on the
+server. Time is a pure function of the wall clock:
+
+```
+remaining_ms = duration_ms
+             - elapsed_ms                    # consumed before the last start
+             - (running ? now - clock_started_at : 0)
+```
+
+Consequences:
+
+- The server stores timestamps, never accumulated ticks. Cycle transitions
+  are lazy (any read advances the session) plus a 1-second in-process
+  sweeper for rooms nobody is watching. Overshoot past a boundary is
+  inherited by the next cycle, so a single read catches up correctly.
+- The client renders `remaining - (Date.now() - serverNow)` and resyncs on
+  visibility change. A frozen or throttled tab loses nothing; the math is
+  already correct when it wakes. No web worker, no WASM.
+- Focus totals are exact by construction: a completed FOCUS cycle has its
+  full duration, a stopped one has its partial `elapsed_ms`.
+
+## Stack
+
+One language (TypeScript), one runtime (Bun), one process:
+
+- **Bun** serves HTTP API + native WebSockets via **Hono**.
+- **bun:sqlite** (SQLite, WAL) is the only datastore.
+- **Vue 3 + Vite** in `web/` (Bun workspaces), served by the same process.
+- Passwordless identity: the first session you create mints an anonymous
+  user and sets a signed HttpOnly cookie. No accounts, no passwords, no
+  email. Owners are whoever holds the cookie; everyone else joins with a
+  display name.
+
+Deps: `hono`, `vue`, `vue-router`, `vite`. Dev deps: `@types/bun`,
+`@biomejs/biome`. Nothing else.
+
+## What was kept from the old codebase
+
+- All focus techniques, ported **verbatim**: Camel (greedy long-focus
+  packing, the reserved final 25-5-25-5 block, the three distributors),
+  Pomodoro, 52/17, 90-minute, 2-hour blocks, Flowtime, Custom.
+  `test/fixtures/techniques-golden.json` was generated from the old Python
+  implementation and the port must match it exactly.
+- The limits: cycles 1..600 minutes, at most 250 per session, total time at
+  most 17h59.
+- `assets/` brand binaries (favicons, logo, og image).
+
+## What was cut, and add back when
+
+- **Accounts, passwords, emails**. Identity is the cookie. If you lose it,
+  you lose your stats; that is fine for a free co-focus timer.
+- **Per-participant focus logs** (the old FocusPeriod rows each follower
+  tracked during someone else's session). Add a periods table back when a
+  real participant asks for it.
+- **Redis, channels, scheduler, nginx, docker**. One process, one ox-engine
+  deploy.
+- **Client sync throttling**. Reads are O(1); nothing to throttle.
+
+## API
+
+Timestamps are epoch milliseconds. Technique durations are minutes on the
+wire.
+
+### Identity
+
+| Route | Body | Notes |
+| --- | --- | --- |
+| `POST /api/sessions` | `{technique, cycles:[{type, minutes}, ...]}` | starts running; also mints the identity if no cookie yet |
+| `GET /api/me` | | stats + your recent sessions (zeros when no cookie) |
+
+Cookie: `fokus_session`, HttpOnly, SameSite=Lax, Secure, 30 days,
+HMAC-signed. Losing it means an anonymous identity is minted again.
+
+### Techniques
+
+`POST /api/techniques/preview` (no auth needed):
+
+```json
+{"technique":"Camel","totalMinutes":180,
+ "distributeLong":false,"distributeShort":false,"distributeLast":false}
+```
+
+Response:
+
+```json
+{"technique":"Camel","totalMinutes":180,"remainingMinutes":0,
+ "cycles":[{"type":"FOCUS","minutes":50},{"type":"BREAK","minutes":10}, ...]}
+```
+
+### Sessions
+
+| Route | Body | Notes |
+| --- | --- | --- |
+| `POST /api/sessions` | `{technique, cycles:[...]}` | starts running |
+| `GET /api/sessions/:id` | | state view (+ `isOwner` for cookie holders) |
+| `POST /api/sessions/:id/toggle` | | owner; updated state view |
+| `POST /api/sessions/:id/stop` | | owner; partial focus stays |
+| `POST /api/sessions/:id/next` | | owner; skips to next cycle |
+
+### WebSocket
+
+`GET /ws/session/:id` (cookie or anonymous). Server messages:
+
+- `timer_update` on connect (includes `isOwner`), on every mutation, and
+  every cycle change (same view as the REST session route, plus `type`).
+- `followers_update` `{"type":"followers_update","followers":[{"username":..,"joinedAtMs":..}]}`
+- `error` `{"type":"error","message":"..."}`
+
+Client messages (JSON):
+
+- `{"action":"join_session","guest_name":"Sam"}`, a name is required for
+  everyone (guests and cookie users)
+- `{"action":"toggle_timer"}` / `{"action":"stop_timer"}` /
+  `{"action":"transition_to_next_cycle"}` (owner only)
+- `{"action":"sync_inactive_timer"}` (replies with `timer_update` to this
+  socket)
+
+`GET /healthz` returns `{"ok":true}`. Anything else not under `/api` or
+`/ws` serves the SPA from `web/dist`.
+
+## Data model
+
+```sql
+users(id, handle unique, created_at)                      -- anonymous identities
+sessions(id text pk, owner_id, technique, state,          -- running|paused|completed
+         current_cycle_order, cycle_clock_started_at?, created_at, completed_at?)
+cycles(session_id, cycle_order, type, duration_ms, elapsed_ms, completed)
+followers(session_id, username, user_id?, joined_at, pk(session_id, username))
+```
+
+`cycles.elapsed_ms` banks a cycle's consumed time; a completed cycle holds
+its full `duration_ms`. `sessions.cycle_clock_started_at` marks the last
+start (null while paused). Isolation: a `followers` row is always scoped to
+its session, and the room is the session.
 
 ## Development
 
 ```bash
-uv sync
-uv run python manage.py migrate
-uv run python manage.py runserver
+cp .env.sample .env          # set SESSION_SECRET once
+bun install                  # installs server and web (Bun workspaces)
+bun run dev                  # API+WS+SPA on :8010
+bun run dev:web              # or: vite dev server with API proxy
+bun run build:web            # build the SPA into web/dist (the server serves it)
+bun test                     # 369 tests: parity, engine, API, WS, isolation, client clock
+bun run lint                 # biome
 ```
 
-## Docker
+## Deployment
 
-```bash
-cp .env.sample .env
-docker compose up --build
-```
+Self-hosted OpenShip, ox1 engine (`ox.toml`). Build runs
+`bun install --frozen` and builds the SPA into `web/dist`. The process is a
+plain `bun src/index.ts` command; SQLite lives at `./data/db.sqlite3`.
+Needed env vars: `SESSION_SECRET` (required), `PORT`, `DATABASE_PATH`.
+See `docs/operations.md`. No Docker anywhere.
 
-Production runs the same Compose stack on OpenShip. See
-[`docs/operations.md`](docs/operations.md) for deployment, health checks, and
-SQLite backup/restore guidance.
+## Roadmap
 
-Algorithm i used to calculate time intervals for sessions using camel technique. this camel style focus intervals is used by twitch streamer https://www.twitch.tv/vanyastudytogether/
-
-```mermaid
-graph TD
-    A[Start] --> B[Calculate total minutes]
-    B --> C[Initialize variables]
-    C --> D[Set cycle durations]
-    D --> E{Remaining time > 0?}
-    E -->|Yes| F{Remaining time >= Long focus + Long break?}
-    F -->|Yes| G[Add long focus cycle]
-    G --> H[Add long break]
-    H --> I{Remaining time >= Short focus + Short break?}
-    I -->|Yes| J[Add short focus cycle]
-    J --> K[Add short break]
-    K --> L[Decrease long focus duration]
-    L --> E
-    I -->|No| E
-    F -->|No| M[Add final 25-5-25-5 pattern]
-    E -->|No| M
-    M --> N{Remaining time >= cycle duration?}
-    N -->|Yes| O[Add cycle]
-    O --> P{All final cycles added?}
-    P -->|No| N
-    P -->|Yes| Q[Determine distribution types]
-    N -->|No| Q
-    Q --> R[Initialize distribution counts]
-    R --> S{Cycles to distribute and remaining time > 0?}
-    S -->|Yes| T{For each distribution type}
-    T --> U{For each cycle of current type}
-    U --> V{Remaining time > 0 and cycle duration < max?}
-    V -->|Yes| W[Increase cycle duration]
-    W --> X[Update distribution count]
-    X --> Y[Decrease remaining time]
-    Y --> Z{Remaining time = 0?}
-    Z -->|Yes| AA[Break inner loop]
-    Z -->|No| U
-    V -->|No| U
-    U --> AB{All cycles of type processed?}
-    AB -->|No| U
-    AB -->|Yes| AC{All types processed?}
-    AC -->|No| T
-    AC -->|Yes| AD{Remaining time = 0?}
-    AD -->|No| T
-    AD -->|Yes| AE[Generate distribution message]
-    S -->|No| AE
-    AE --> AF{Remaining time > 0?}
-    AF -->|Yes| AG[Update message with remaining time]
-    AF -->|No| AH[Calculate finish time]
-    AG --> AH
-    AH --> AI[Prepare and return results]
-    AI --> AJ[End]
-```
+1. Android app: native timer UI using the same REST + WS surface.
+2. Windows desktop app: same.
+3. Add per-participant stats (periods table) only if real participants ask.

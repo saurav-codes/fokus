@@ -1,25 +1,15 @@
-# focus-timer on the ox1 engine: Django + daphne (websockets), a scheduler
-# worker, redis, SQLite in the data dir, collectstatic served by Caddy.
-
+# fokus on the ox1 engine. Everything else is detected from package.json and
+# bun.lock: install, the SPA's own build, and the `start` script.
 [app]
-start  = "uv run daphne -b 127.0.0.1 -p $PORT src.asgi:application"
-health = "/"
-
-[static]
-paths = { "/static" = "production_static_files" }
+health = "/healthz"
 
 [build]
-commands = [
-  "uv sync --frozen --no-dev",
-  "uv run python manage.py collectstatic --noinput",
-]
-migrate = "uv run python manage.py migrate --noinput"
-
-[workers]
-scheduler = "uv run python manage.py redis_scheduler"
-
-[services]
-redis = {}
+# root package.json's start script runs the backend; the SPA still needs its
+# own build, so declare it (detection has no `build` script to key on)
+commands = ["bun --cwd web run build"]
 
 [storage]
-keep = ["db", "logs"]
+keep = ["data"]
+
+[tools]
+bun = "1.3"
