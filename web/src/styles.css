@@ -152,7 +152,7 @@ input, select { font: inherit; color: inherit; }
 .select-wrap select:focus { border-color: var(--faint); outline: none; }
 
 /* Stepper (hours / minutes) */
-.stepper { display: grid; grid-template-columns: 46px 1fr 46px; height: 52px; border: 1px solid var(--line); border-radius: 11px; background: var(--card); overflow: hidden; }
+.stepper { display: grid; grid-template-columns: 46px 64px 46px; width: max-content; height: 52px; border: 1px solid var(--line); border-radius: 11px; background: var(--card); overflow: hidden; }
 .stepper button { border: 0; background: transparent; color: var(--subtle); cursor: pointer; font: 400 19px/1 var(--sans); transition: color 150ms ease, background-color 150ms ease; }
 .stepper button:hover { color: var(--ink); background: var(--stage); }
 .stepper button:first-child { border-right: 1px solid var(--line); }
@@ -164,11 +164,11 @@ input, select { font: inherit; color: inherit; }
 /* Builder */
 .builder { display: grid; gap: 18px; padding: clamp(28px, 4vw, 48px) 0 clamp(80px, 9vw, 120px); }
 .builder-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; align-items: start; }
-.stepper-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.stepper-grid { display: grid; grid-template-columns: repeat(2, max-content); gap: 14px; justify-content: start; }
 .cycle-table { display: grid; gap: 10px; }
-.cycle-row { display: grid; grid-template-columns: auto minmax(120px, 1.3fr) minmax(96px, .8fr) auto; align-items: center; gap: 12px; }
+.cycle-row { display: grid; grid-template-columns: auto auto auto 1fr; align-items: center; gap: 12px; }
 .cycle-row .order { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--stage); font: 400 11.5px/1 var(--mono); color: var(--subtle); }
-.cycle-row select { appearance: none; -webkit-appearance: none; height: 44px; padding: 0 32px 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font: 500 14.5px/1 var(--sans); color: var(--ink); cursor: pointer; min-width: 0; }
+.cycle-row select { appearance: none; -webkit-appearance: none; width: 116px; height: 44px; padding: 0 32px 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font: 500 14.5px/1 var(--sans); color: var(--ink); cursor: pointer; min-width: 0; }
 .cycle-row select:focus { border-color: var(--faint); outline: none; }
 .cycle-row .sel { position: relative; }
 .cycle-row .sel .chev { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--subtle); pointer-events: none; }
@@ -178,7 +178,7 @@ input, select { font: inherit; color: inherit; }
 .min-field input::-webkit-outer-spin-button, .min-field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .min-field input:focus { outline: none; }
 .min-field span { padding-right: 12px; font-size: 13px; color: var(--subtle); user-select: none; }
-.cycle-row .del { display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 9px; background: transparent; color: var(--subtle); cursor: pointer; transition: color 150ms ease, background-color 150ms ease; }
+.cycle-row .del { display: grid; place-items: center; justify-self: end; width: 38px; height: 38px; border: 0; border-radius: 9px; background: transparent; color: var(--subtle); cursor: pointer; transition: color 150ms ease, background-color 150ms ease; }
 .cycle-row .del:hover { color: var(--bad); background: rgba(201,66,62,.08); }
 .cycle-sum { display: flex; justify-content: space-between; align-items: baseline; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--subtle); }
 .cycle-sum strong { font: 400 22px/1 var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; }
