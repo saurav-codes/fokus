@@ -6,6 +6,7 @@ import * as timer from "../src/timer";
 import { tempDbPath } from "./helpers";
 
 const NOW = 1_000_000_000_000;
+const MIN = 60_000;
 const oneFocusCycle = [{ type: FOCUS, minutes: 25 }];
 
 describe("follower session isolation (db layer)", () => {
@@ -77,6 +78,66 @@ describe("follower session isolation (db layer)", () => {
     expect(names(a)).toEqual(["Sam"]);
     expect(names(b)).toEqual([]);
     expect(names(c)).toEqual(["Sam"]);
+  });
+});
+
+describe("focus stats attribution (db layer)", () => {
+  let db: DB;
+  let ownerId: number;
+  let friendId: number;
+
+  beforeAll(() => {
+    db = openDb(tempDbPath());
+    migrate(db);
+    run(db, "INSERT INTO users (handle, created_at) VALUES ('owner', ?)", NOW);
+    run(db, "INSERT INTO users (handle, created_at) VALUES ('friend', ?)", NOW);
+    ownerId = get<{ id: number }>(db, "SELECT id FROM users WHERE handle = 'owner'")!.id;
+    friendId = get<{ id: number }>(db, "SELECT id FROM users WHERE handle = 'friend'")!.id;
+  });
+  afterAll(() => db.close());
+
+  test("a session counts once for its owner and once for each joiner, with its focus time", () => {
+    const owned = timer.createSession(db, ownerId, "Pomodoro", oneFocusCycle, NOW);
+    const joined = timer.createSession(db, friendId, "Pomodoro", oneFocusCycle, NOW);
+    // the owner joins both rooms: their own session must not count twice
+    const join = (sessionId: string, name: string, userId: number) => {
+      timer.addFollower(db, sessionId, name, userId);
+      timer.addMembership(db, sessionId, userId);
+    };
+    join(owned, "Owner", ownerId);
+    join(joined, "Owner", ownerId);
+    timer.stop(db, joined, NOW + 10 * MIN); // 10 focus minutes banked in the joined session
+
+    expect(timer.userStats(db, ownerId)).toEqual({ sessions: 2, focusMs: 10 * MIN, avgSessionMs: 5 * MIN });
+    expect(timer.userStats(db, friendId)).toEqual({ sessions: 1, focusMs: 10 * MIN, avgSessionMs: 10 * MIN });
+  });
+});
+
+describe("joined attribution outlives presence (db layer)", () => {
+  let db: DB;
+  let ownerId: number;
+  let friendId: number;
+
+  beforeAll(() => {
+    db = openDb(tempDbPath());
+    migrate(db);
+    run(db, "INSERT INTO users (handle, created_at) VALUES ('owner', ?)", NOW);
+    run(db, "INSERT INTO users (handle, created_at) VALUES ('friend', ?)", NOW);
+    ownerId = get<{ id: number }>(db, "SELECT id FROM users WHERE handle = 'owner'")!.id;
+    friendId = get<{ id: number }>(db, "SELECT id FROM users WHERE handle = 'friend'")!.id;
+  });
+  afterAll(() => db.close());
+
+  test("closing the tab keeps the joined session's stats and leaves no ghost participant", () => {
+    const joined = timer.createSession(db, friendId, "Pomodoro", oneFocusCycle, NOW);
+    timer.addFollower(db, joined, "Owner", ownerId);
+    timer.addMembership(db, joined, ownerId);
+    timer.stop(db, joined, NOW + MIN);
+
+    // the joiner's socket closes: the presence row goes, the membership stays
+    timer.removeFollower(db, joined, ownerId, "Owner");
+    expect(timer.getFollowers(db, joined)).toEqual([]);
+    expect(timer.userStats(db, ownerId)).toEqual({ sessions: 1, focusMs: MIN, avgSessionMs: MIN });
   });
 });
 

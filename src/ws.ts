@@ -109,6 +109,8 @@ export function makeRealtime(db: DB, auth: Auth) {
           sendError(ws, err instanceof InvalidInput ? err.message : "could not join session");
           return;
         }
+        // the join stays attributed to the joiner's stats after they leave; followers is only live presence
+        if (user) timer.addMembership(db, sessionId, user.id);
         socketMeta.joined = true;
         socketMeta.guestName = name;
         broadcastFollowers(sessionId);

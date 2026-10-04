@@ -286,6 +286,17 @@ export function removeFollower(db: DB, sessionId: string, userId: number | null,
   }
 }
 
+/** durable attribution: this user joined this session, whether or not they are still in the room */
+export function addMembership(db: DB, sessionId: string, userId: number): void {
+  run(
+    db,
+    "INSERT OR IGNORE INTO memberships (session_id, user_id, joined_at) VALUES (?, ?, ?)",
+    sessionId,
+    userId,
+    Date.now(),
+  );
+}
+
 export type SessionStateView = {
   id: string;
   technique: string;
@@ -336,14 +347,23 @@ export function sessionState(db: DB, sessionId: string, now: number = Date.now()
   };
 }
 
+/**
+ * Stats follow the participant, not just the owner: every session the user
+ * owns or joined (memberships) counts exactly once, with its focus time.
+ */
 export function userStats(db: DB, userId: number): { sessions: number; focusMs: number; avgSessionMs: number } {
-  const sessions = get<{ n: number }>(db, "SELECT COUNT(*) AS n FROM sessions WHERE owner_id = ?", userId)?.n ?? 0;
-  const focusMs =
-    get<{ t: number }>(
-      db,
-      `SELECT COALESCE(SUM(c.elapsed_ms), 0) AS t FROM cycles c
-       JOIN sessions s ON s.id = c.session_id WHERE s.owner_id = ? AND c.type = 'FOCUS'`,
-      userId,
-    )?.t ?? 0;
+  const row = get<{ n: number; t: number }>(
+    db,
+    `SELECT COUNT(*) AS n, COALESCE(SUM(f), 0) AS t FROM (
+       SELECT (SELECT COALESCE(SUM(c.elapsed_ms), 0) FROM cycles c
+                WHERE c.session_id = s.id AND c.type = 'FOCUS') AS f
+       FROM sessions s
+       WHERE s.owner_id = ? OR s.id IN (SELECT session_id FROM memberships WHERE user_id = ?)
+     )`,
+    userId,
+    userId,
+  );
+  const sessions = row?.n ?? 0;
+  const focusMs = row?.t ?? 0;
   return { sessions, focusMs, avgSessionMs: sessions > 0 ? Math.round(focusMs / sessions) : 0 };
 }

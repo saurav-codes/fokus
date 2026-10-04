@@ -51,6 +51,17 @@ export function buildApp(db: DB, auth: Auth) {
     if (session.owner_id !== user.id) throw new InvalidInput("only the session owner can do that", 403);
   }
 
+  /** passwordless: mint an anonymous identity and set its cookie when the caller has none */
+  function mintUser(c: Context): UserRow {
+    let user = c.get("user") as UserRow | null;
+    if (!user) {
+      user = auth.createUser();
+      c.set("user", user);
+      c.header("set-cookie", auth.cookieHeader(user.id));
+    }
+    return user;
+  }
+
   app.get("/healthz", (c) => c.json({ ok: true }));
 
   app.post("/api/techniques/preview", async (c) => {
@@ -73,16 +84,24 @@ export function buildApp(db: DB, auth: Auth) {
 
   app.get("/api/me", (c) => {
     const user = c.get("user") as UserRow | null;
+    // the dashboard lists sessions the user owns or joined, newest first
     const sessions = user
-      ? all<{ id: string; technique: string; state: timer.SessionState; created_at: number }>(
+      ? all<{ id: string; technique: string; state: timer.SessionState; created_at: number; joined: 0 | 1 }>(
           db,
-          "SELECT id, technique, state, created_at FROM sessions WHERE owner_id = ? ORDER BY created_at DESC LIMIT 20",
+          `SELECT s.id, s.technique, s.state, s.created_at,
+             EXISTS(SELECT 1 FROM memberships m WHERE m.session_id = s.id AND m.user_id = ?) AS joined
+           FROM sessions s
+           WHERE s.owner_id = ? OR s.id IN (SELECT session_id FROM memberships WHERE user_id = ?)
+           ORDER BY s.created_at DESC LIMIT 20`,
+          user.id,
+          user.id,
           user.id,
         ).map((s) => ({
           id: s.id,
           technique: s.technique,
           state: s.state,
           createdAtMs: s.created_at,
+          joined: s.joined === 1,
         }))
       : [];
     return c.json({
@@ -94,11 +113,7 @@ export function buildApp(db: DB, auth: Auth) {
 
   app.post("/api/sessions", async (c) => {
     // passwordless: the first session you create mints your anonymous identity
-    let user = c.get("user") as UserRow | null;
-    if (!user) {
-      user = auth.createUser();
-      c.header("set-cookie", auth.cookieHeader(user.id));
-    }
+    const user = mintUser(c);
     const b = await body(c);
     const technique = str(b.technique);
     if (!isTechnique(technique)) {
@@ -116,9 +131,10 @@ export function buildApp(db: DB, auth: Auth) {
 
   app.get("/api/sessions/:id", (c) => {
     const session = loadSession(c);
-    const user = c.get("user") as UserRow | null;
+    // the room page always loads this view: a cookieless joiner becomes attributable here
+    const user = mintUser(c);
     const view = timer.sessionState(db, session.id) as timer.SessionStateView & { isOwner?: boolean };
-    if (view) view.isOwner = user !== null && user.id === session.owner_id;
+    if (view) view.isOwner = user.id === session.owner_id;
     return c.json(view);
   });
 
