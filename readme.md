@@ -8,7 +8,7 @@ and rooms stay isolated to their own participants and timer.
 This is the hosted backend plus a Vue 3 SPA (`web/`), designed to be the
 same surface that future Android and Windows native apps will use.
 
-## Why the rewrite
+## Why the rewrite - Staging ENviroment
 
 The old stack was Django + Channels + Daphne + Redis + a Redis zset
 scheduler worker + nginx, six cooperating services to tick a countdown.
