@@ -38,9 +38,10 @@ bun src/index.ts            # http://127.0.0.1:8010/healthz
 ## Deployment
 
 Push a tested commit to `main`. Ox auto-deploys from GitHub: it runs
-`bun install --frozen`, builds the SPA with `bun --cwd web run build`, and
-starts `bun src/index.ts`. A successful release is one process where
-`GET /healthz` returns `{"ok":true}` and a WebSocket upgrade to
+`bun install --frozen-lockfile`, builds the SPA with
+`bun run --cwd web build` (`bun --cwd web run build` prints help and builds
+nothing), and starts `bun src/index.ts`. A successful release is one process
+where `GET /healthz` returns `{"ok":true}` and a WebSocket upgrade to
 `/ws/session/<uuid>` connects.
 
 ## SQLite backup and restore
@@ -65,9 +66,12 @@ PY
 ## 2026-10 rewrite: Django to Bun, passwordless
 
 From Django + Channels + Redis + Daphne + scheduler + nginx + Docker
-compose to one Bun process. Auth is passwordless: the first session a
-visitor creates mints an anonymous cookie identity (`fokus_session`),
-which makes them its owner. The web SPA is Vue 3 in `web/`, built at deploy
+compose to one Bun process. Auth is passwordless: an anonymous cookie
+identity (`fokus_session`) is minted when a visitor creates a session
+(making them its owner) or opens a room link. Joining a room writes a
+durable `memberships` row, so the session counts toward the joiner's
+stats even after they leave; the participant list (`followers`) stays
+live presence. The web SPA is Vue 3 in `web/`, built at deploy
 time, served from the same process. Design language is taken from the ox
 landing page (vpsctl project).
 

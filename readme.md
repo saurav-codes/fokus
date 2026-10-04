@@ -1,4 +1,4 @@
-# fokus
+<p align="center"><img src="web/public/logo.png" alt="fokus" width="240"></p>
 
 A co-focus shared timer: you build a session from a focus technique, share
 the room link, and everyone watches the same authoritative server-side
@@ -47,13 +47,13 @@ One language (TypeScript), one runtime (Bun), one process:
 - **Bun** serves HTTP API + native WebSockets via **Hono**.
 - **bun:sqlite** (SQLite, WAL) is the only datastore.
 - **Vue 3 + Vite** in `web/` (Bun workspaces), served by the same process.
-- Passwordless identity: the first session you create mints an anonymous
-  user and sets a signed HttpOnly cookie. No accounts, no passwords, no
-  email. Owners are whoever holds the cookie; everyone else joins with a
-  display name.
+- Passwordless identity: creating a session or opening a room link mints
+  an anonymous user and sets a signed HttpOnly cookie. No accounts, no
+  passwords, no email. Session creators are owners; everyone else joins
+  with a display name, and the dashboard counts owned and joined sessions.
 
 Deps: `hono`, `vue`, `vue-router`, `vite`. Dev deps: `@types/bun`,
-`@biomejs/biome`. Nothing else.
+`@biomejs/biome`, `@vitejs/plugin-vue`. Nothing else.
 
 ## What was kept from the old codebase
 
@@ -76,6 +76,14 @@ Deps: `hono`, `vue`, `vue-router`, `vite`. Dev deps: `@types/bun`,
 - **Redis, channels, scheduler, nginx, docker**. One process, one ox-engine
   deploy.
 - **Client sync throttling**. Reads are O(1); nothing to throttle.
+
+## Web UI
+
+- **Builder**: the technique preview regenerates on every input change;
+  no submit button.
+- **Room**: an SVG circle progress ring renders the timer, with a
+  share/copy-link button.
+- **Dashboard**: lists sessions you own and sessions you joined.
 
 ## API
 
@@ -113,7 +121,7 @@ Response:
 | Route | Body | Notes |
 | --- | --- | --- |
 | `POST /api/sessions` | `{technique, cycles:[...]}` | starts running |
-| `GET /api/sessions/:id` | | state view (+ `isOwner` for cookie holders) |
+| `GET /api/sessions/:id` | | state view (+ `isOwner`); also mints the identity if no cookie yet |
 | `POST /api/sessions/:id/toggle` | | owner; updated state view |
 | `POST /api/sessions/:id/stop` | | owner; partial focus stays |
 | `POST /api/sessions/:id/next` | | owner; skips to next cycle |
@@ -146,13 +154,17 @@ users(id, handle unique, created_at)                      -- anonymous identitie
 sessions(id text pk, owner_id, technique, state,          -- running|paused|completed
          current_cycle_order, cycle_clock_started_at?, created_at, completed_at?)
 cycles(session_id, cycle_order, type, duration_ms, elapsed_ms, completed)
-followers(session_id, username, user_id?, joined_at, pk(session_id, username))
+followers(session_id, username, user_id?, joined_at, pk(session_id, username))  -- live presence
+memberships(session_id, user_id, joined_at, pk(session_id, user_id))            -- durable attribution
 ```
 
 `cycles.elapsed_ms` banks a cycle's consumed time; a completed cycle holds
 its full `duration_ms`. `sessions.cycle_clock_started_at` marks the last
 start (null while paused). Isolation: a `followers` row is always scoped to
-its session, and the room is the session.
+its session, and the room is the session. `followers` is the live
+participant list (rows leave when their socket closes); `memberships` is
+written once per joined user, so a joined session stays in the joiner's
+dashboard after they leave.
 
 ## Development
 
@@ -162,7 +174,7 @@ bun install                  # installs server and web (Bun workspaces)
 bun run dev                  # API+WS+SPA on :8010
 bun run dev:web              # or: vite dev server with API proxy
 bun run build:web            # build the SPA into web/dist (the server serves it)
-bun test                     # 369 tests: parity, engine, API, WS, isolation, client clock
+bun test                     # 373 tests: parity, engine, API, WS, isolation, client clock
 bun run lint                 # biome
 ```
 
