@@ -4,3 +4,4 @@ data/
 *.log
 .codegraph/
 web/dist/
+.DS_Store
