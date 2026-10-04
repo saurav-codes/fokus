@@ -15,6 +15,7 @@
   --muted: #6E6E68;
   --track: #ECECE9;
   --accent: #22C55E;
+  --accent-strong: #15803D;
   --accent-soft: #DCFCE7;
   /* Legacy aliases resolve through the theme tokens. */
   --card: var(--surface);
@@ -51,6 +52,7 @@
   --muted: #8B8B84;
   --track: #2B2B27;
   --accent: #22C55E;
+  --accent-strong: #15803D;
   --accent-soft: #1D3A28;
   --text: #D2D2CE;
   --faint: #6B6B66;
@@ -91,8 +93,8 @@ input, select { font: inherit; color: inherit; }
 .btn-ghost-light { color: #F5F5F3; border-color: #3A3A37; background: transparent; }
 .btn-ghost-light:hover:not(:disabled) { border-color: #75756F; }
 .btn-outline { color: var(--ink); border-color: var(--line); background: transparent; }
-.btn-accent { background: var(--accent); color: #fff; }
-.btn-accent:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, black); }
+.btn-accent { background: var(--accent-strong); color: #fff; }
+.btn-accent:hover:not(:disabled) { background: #16A34A; }
 .btn:disabled { cursor: not-allowed; opacity: .8; }
 .btn .ic { width: 16px; height: 16px; }
 

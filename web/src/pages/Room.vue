@@ -152,17 +152,24 @@
       </aside>
     </div>
 
+    <SessionCompleteModal
+      v-if="showComplete"
+      :cycles="payload?.cycles ?? []"
+      @close="completeDismissed = true"
+    />
+
     <ShareButton />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { getJson } from "../api";
 import { computeRemainingMs, formatCountdown, type SyncedPayload } from "../clock";
 import TimerRing from "../components/TimerRing.vue";
 import ShareButton from "../components/ShareButton.vue";
+import SessionCompleteModal from "../components/SessionCompleteModal.vue";
 
 type CycleView = {
   order: number;
@@ -218,6 +225,14 @@ const endsAt = computed(() => {
   if (!view?.willFinishAtMs) return "";
   return new Date(view.willFinishAtMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 });
+const completeDismissed = ref(false);
+const showComplete = computed(() => payload.value?.state === "completed" && !completeDismissed.value);
+watch(
+  () => payload.value?.state,
+  (state) => {
+    if (state === "completed") completeDismissed.value = false;
+  },
+);
 
 function handleMessage(data: any) {
   if (data.type === "timer_update") {
