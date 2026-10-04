@@ -212,16 +212,16 @@ was attempted or validated here; `cap add` / `cap sync` are green without it.
 
 ### OSS store: F-Droid
 
-The app qualifies for F-Droid (MIT licensed, OSS dependencies). Points to note:
+The app qualifies for F-Droid (MIT licensed, OSS dependencies). Status and
+next steps:
 
-- F-Droid builds from source on its own farm and signs the result with its own
-  key; you push a version tag on the repo and submit a metadata YAML to
-  `fdroiddata` (the GitLab package database).
-- Since the APK is a thin WebView shell over `https://fokus.lazyplanner.app`,
-  F-Droid will flag it as "depends on a non-free/none-free network" — allowed,
-  but read the AntiFeatures it lists.
-- Alternatives that also work for OSS distribution: GitHub Releases (footer
-  link can target them) and IzzyOnDroid/Accrescent.
+- Prepared: `LICENSE`, `fastlane/metadata/android/en-US/{title,short,full}`.
+- Remaining to submit: a version tag (created by the release workflow below),
+  then a fork of `fdroiddata` with a `metadata/com.lazyplanner.fokus.yml`
+  recipe. The listing will flag the hosted-URL wrapper as a network
+  anti-feature, which is acceptable.
+- GitHub Releases hosts the APK; the footer link uses the stable
+  `releases/latest/download/fokus.apk` URL.
 
 ## Roadmap
 
