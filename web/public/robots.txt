@@ -1,0 +1,4 @@
+User-agent: *
+Disallow:
+
+Sitemap: https://fokus.lazyplanner.app/sitemap.xml

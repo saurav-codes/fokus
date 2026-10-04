@@ -3,12 +3,55 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>fokus: focus together</title>
+    <title>fokus — free shared focus timer, no account needed</title>
     <meta
       name="description"
-      content="A shared, always-right focus timer. Pick a technique, press start, send the link. Everyone watches the same countdown. Free, no account."
+      content="Pick a technique, press start, send the link: everyone watches the same countdown. A free shared focus timer for co-working and study, no account needed."
     />
-    <meta name="theme-color" content="#FBFBFA" />
+    <meta
+      name="keywords"
+      content="shared focus timer, free focus timer, pomodoro, co-working timer"
+    />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://fokus.lazyplanner.app/" />
+    <meta name="theme-color" content="#F7F7F5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0F0F0E" media="(prefers-color-scheme: dark)" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://fokus.lazyplanner.app/" />
+    <meta property="og:site_name" content="fokus" />
+    <meta property="og:title" content="fokus — free shared focus timer, no account needed" />
+    <meta
+      property="og:description"
+      content="Pick a technique, press start, send the link: everyone watches the same countdown. A free shared focus timer for co-working and study, no account needed."
+    />
+    <meta property="og:image" content="https://fokus.lazyplanner.app/og-image.png" />
+    <meta property="og:image:width" content="1536" />
+    <meta property="og:image:height" content="1024" />
+    <meta property="og:image:alt" content="fokus shared focus timer countdown" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="fokus — free shared focus timer, no account needed" />
+    <meta
+      name="twitter:description"
+      content="Pick a technique, press start, send the link: everyone watches the same countdown. A free shared focus timer for co-working and study, no account needed."
+    />
+    <meta name="twitter:image" content="https://fokus.lazyplanner.app/og-image.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "fokus",
+        "url": "https://fokus.lazyplanner.app",
+        "description": "A free shared focus timer where everyone in the room watches the same countdown.",
+        "applicationCategory": "ProductivityApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires a modern browser with JavaScript enabled.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -16,6 +59,14 @@
     <link rel="preload" href="/fonts/switzer-400.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
+    <noscript>
+      <h1>fokus — free shared focus timer</h1>
+      <p>
+        fokus is a free, passwordless co-focus timer. Pick a technique such as pomodoro,
+        press start, then share the room link: everyone watches the same always-right
+        countdown in their own browser. Creating or joining a room needs JavaScript.
+      </p>
+    </noscript>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
