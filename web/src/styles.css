@@ -131,11 +131,11 @@ input, select { font: inherit; color: inherit; }
 /* Forms */
 .field { display: grid; gap: 7px; }
 .field label { font-size: 14.5px; font-weight: 500; color: var(--ink); }
-.field input[type="text"], .field input[type="number"], .field select {
+.field input[type="text"], .field input[type="number"]:not(.stepper input), .field select {
   height: 46px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--card);
   font: 400 15.5px/1 var(--sans); color: var(--ink); min-width: 0;
 }
-.field input[type="number"] { width: 100px; }
+.field input[type="number"]:not(.stepper input) { width: 100px; }
 .field input:focus, .field select:focus { border-color: var(--faint); outline: none; }
 .check { display: inline-flex; align-items: center; gap: 9px; font-size: 14.5px; color: var(--text); cursor: pointer; user-select: none; }
 .check input { width: 17px; height: 17px; accent-color: var(--ink); margin: 0; cursor: pointer; }
