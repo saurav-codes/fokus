@@ -210,6 +210,18 @@ tracked. Building needs an Android SDK, installed via Android Studio, on the
 machine that builds. This machine has Java only (no SDK), so no gradle build
 was attempted or validated here; `cap add` / `cap sync` are green without it.
 
+### OSS store: F-Droid
+
+The app qualifies for F-Droid (MIT licensed, OSS dependencies). Points to note:
+
+- F-Droid builds from source on its own farm; push a signed tag and submit a
+  metadata YAML to `fdroiddata` (the GitLab package database).
+- Since the APK is a thin WebView shell over `https://fokus.lazyplanner.app`,
+  F-Droid will flag it as "depends on a non-free/none-free network" — allowed,
+  but read the AntiFeatures it lists.
+- Alternatives that also work for OSS distribution: GitHub Releases (footer
+  link can target them) and IzzyOnDroid/Accrescent.
+
 ## Roadmap
 
 1. Android app: native timer UI using the same REST + WS surface.
