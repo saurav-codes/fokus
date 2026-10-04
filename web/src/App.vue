@@ -36,6 +36,8 @@
       <img class="logo-mark-sm" src="/mark.png" alt="" />
       <p>fokus · focus together</p>
       <RouterLink to="/blog" class="footer-link">blog</RouterLink>
+      <!-- APK lands in web/public once built with Android Studio -->
+      <a href="/fokus.apk" download class="footer-link">android app</a>
     </div>
   </footer>
 </template>
