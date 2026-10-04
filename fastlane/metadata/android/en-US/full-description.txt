@@ -1,0 +1,9 @@
+fokus is a free, passwordless co-focus timer. Create a focus room, share the
+link, and anyone with a display name can join the same countdown. Choose from
+Camel, Pomodoro, or custom cycle sequences. Other participants always see the
+same timer, and every person keeps their own focus stats.
+
+No signup, no account, no ads. Open source (MIT) and built with Capacitor
+around the hosted https://fokus.lazyplanner.app UI.
+
+Source: https://github.com/saurav-codes/fokus
