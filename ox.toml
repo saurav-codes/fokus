@@ -1,12 +1,13 @@
-# fokus on the ox1 engine. Everything else is detected from package.json and
-# bun.lock: install, the SPA's own build, and the `start` script.
+# fokus on the ox1 engine. The start script is detected from package.json.
 [app]
 health = "/healthz"
 
 [build]
-# root package.json's start script runs the backend; the SPA still needs its
-# own build, so declare it (detection has no `build` script to key on)
-commands = ["bun --cwd web run build"]
+# The SPA needs its own build (the root package.json has no `build` script).
+# Declared commands replace the detected list on the ox running today, so the
+# install is listed too. `bun run --cwd web build`, not `bun --cwd web run
+# build`: that form prints bun's help and exits 0 without building.
+commands = ["bun install --frozen-lockfile", "bun run --cwd web build"]
 
 [storage]
 keep = ["data"]
