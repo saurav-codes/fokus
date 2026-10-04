@@ -34,7 +34,7 @@
   <footer class="footer">
     <div class="wrap footer-inner">
       <img class="logo-mark-sm" src="/mark.png" alt="" />
-      <p>fokus · focus together</p>
+      <p>fokus · focus together - test branch 1 preview </p>
       <RouterLink to="/blog" class="footer-link">blog</RouterLink>
       <!-- APK comes from GitHub Releases; F-Droid listing comes later -->
       <a href="https://github.com/saurav-codes/fokus/releases/latest/download/fokus.apk" class="footer-link">android app</a>
