@@ -53,11 +53,12 @@ function initialTheme(): Theme {
 // Tints the Android status bar in the Capacitor shell; a no-op on the web.
 async function syncStatusBar(t: Theme) {
   try {
-    const { StatusBar, Style } = await import("@capacitor/status-bar");
+    const mod = await import("@capacitor/status-bar");
+    const { StatusBar, Style } = mod;
     await StatusBar.setBackgroundColor({ color: t === "dark" ? "#0F0F0E" : "#F7F7F5" });
     await StatusBar.setStyle({ style: t === "dark" ? Style.Dark : Style.Light });
-  } catch {
-    // Not running inside a native shell.
+  } catch (e) {
+    console.warn("[fokus] statusbar sync failed:", e);
   }
 }
 
