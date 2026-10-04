@@ -5,3 +5,7 @@ data/
 .codegraph/
 web/dist/
 .DS_Store
+# android/: gradle build outputs only; the platform source itself is tracked
+android/.gradle/
+android/build/
+android/app/build/

@@ -18,6 +18,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2",
-    "@types/bun": "latest"
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@types/bun": "latest",
+    "typescript": "^7.0.2"
   }
 }
