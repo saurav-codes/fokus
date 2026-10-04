@@ -53,7 +53,8 @@ One language (TypeScript), one runtime (Bun), one process:
   with a display name, and the dashboard counts owned and joined sessions.
 
 Deps: `hono`, `vue`, `vue-router`, `vite`. Dev deps: `@types/bun`,
-`@biomejs/biome`, `@vitejs/plugin-vue`. Nothing else.
+`@biomejs/biome`, `@vitejs/plugin-vue`. The Android wrapper adds the
+Capacitor dev deps; see Android (Capacitor) below.
 
 ## What was kept from the old codebase
 
@@ -185,6 +186,29 @@ Self-hosted OpenShip, ox1 engine (`ox.toml`). Build runs
 plain `bun src/index.ts` command; SQLite lives at `./data/db.sqlite3`.
 Needed env vars: `SESSION_SECRET` (required), `PORT`, `DATABASE_PATH`.
 See `docs/operations.md`. No Docker anywhere.
+
+## Android (Capacitor)
+
+`android/` is a Capacitor wrapper: a thin native shell whose WebView loads
+the deployed UI at `https://fokus.lazyplanner.app`, so the app is always
+current with the site. `webDir: web/dist` is only the packaged fallback;
+the mode lives in `capacitor.config.ts` (remove the `server` block to fully
+bundle the SPA into the APK instead).
+
+```bash
+bun run build:web          # refresh web/dist
+npx cap sync               # copy web assets + regenerate android configs
+npx cap open android       # or just open the android/ dir in Android Studio
+cd android
+./gradlew assembleDebug    # APK -> app/build/outputs/apk/debug/
+./gradlew bundleRelease    # AAB -> app/build/outputs/bundle/release/
+```
+
+Gradle build outputs (`android/.gradle`, `android/build`, `android/app/build`,
+copied web assets) are gitignored; the `android/` platform source itself is
+tracked. Building needs an Android SDK, installed via Android Studio, on the
+machine that builds. This machine has Java only (no SDK), so no gradle build
+was attempted or validated here; `cap add` / `cap sync` are green without it.
 
 ## Roadmap
 
