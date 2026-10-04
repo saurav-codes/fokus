@@ -56,9 +56,8 @@ async function syncStatusBar(t: Theme) {
     const { StatusBar, Style } = await import("@capacitor/status-bar");
     await StatusBar.setStyle({ style: t === "dark" ? Style.Dark : Style.Light });
     await StatusBar.setBackgroundColor({ color: t === "dark" ? "#0F0F0E" : "#F7F7F5" });
-    console.info("[fokus] statusbar synced", t);
-  } catch (e) {
-    console.warn("[fokus] statusbar sync failed:", e);
+  } catch {
+    // Not running inside a native shell.
   }
 }
 

@@ -19,6 +19,7 @@
             :phase="currentType"
             :sub="cycleTotal"
             :state="payload.state"
+            :remaining-ms="remainingMs"
           />
 
           <div class="controls" v-if="isOwner">
@@ -199,6 +200,7 @@ const joined = ref(false);
 const nameInput = ref(localStorage.getItem("fokus-name") ?? "");
 const connection = ref<"on" | "off" | "connecting">("connecting");
 const countdown = ref("0:00");
+const remainingMs = ref(0);
 const progress = ref(0);
 const stopConfirm = ref(false);
 const cardEl = ref<HTMLElement | null>(null);
@@ -231,6 +233,61 @@ watch(
   () => payload.value?.state,
   (state) => {
     if (state === "completed") completeDismissed.value = false;
+  },
+);
+
+// WebAudio chime: two overlapping sines (G4+B4), quick attack, ~1.5s decay.
+// Browsers block autoplay, so the context is created lazily and resumed on
+// the first transition; if it stays suspended we silently skip.
+let audioCtx: AudioContext | null = null;
+function chime() {
+  try {
+    if (!audioCtx) audioCtx = new AudioContext();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    if (audioCtx.state !== "running") return;
+    const now = audioCtx.currentTime;
+    const out = audioCtx.createGain();
+    out.gain.setValueAtTime(0.0001, now);
+    out.gain.exponentialRampToValueAtTime(0.25, now + 0.02);
+    out.gain.exponentialRampToValueAtTime(0.0001, now + 1.5);
+    out.connect(audioCtx.destination);
+    for (const freq of [392, 493.88]) {
+      const osc = audioCtx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      osc.connect(out);
+      osc.start(now);
+      osc.stop(now + 1.6);
+    }
+  } catch {
+    // audio is best-effort
+  }
+}
+
+async function notifyTransition(type: "FOCUS" | "BREAK") {
+  const title = type === "BREAK" ? "Break time" : "Focus time";
+  try {
+    if ((window as any).Capacitor?.isNativePlatform?.() === true) {
+      const { LocalNotifications } = await import("@capacitor/local-notifications");
+      if ((await LocalNotifications.requestPermission()).display === "granted") {
+        await LocalNotifications.schedule({
+          notifications: [{ id: 1, title, schedule: { at: new Date(Date.now() + 100) } }],
+        });
+      }
+    } else if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title);
+    }
+  } catch {
+    // notification is best-effort
+  }
+}
+
+watch(
+  () => payload.value?.currentCycle,
+  (cycle, prev) => {
+    if (!cycle?.type || cycle.order === prev?.order) return;
+    notifyTransition(cycle.type);
+    chime();
   },
 );
 
@@ -324,6 +381,7 @@ function updateClock() {
   if (!view) return;
   const remaining = computeRemainingMs(view, offset, Date.now());
   countdown.value = formatCountdown(remaining);
+  remainingMs.value = remaining;
   const duration = view.currentCycle?.durationMs ?? 0;
   progress.value = duration > 0 ? Math.min(Math.max((duration - remaining) / duration, 0), 1) : 0;
   document.title = view.state === "completed" ? "fokus · done" : `${countdown.value} · fokus`;
@@ -350,6 +408,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   ws?.close();
+  if (audioCtx) audioCtx.close().catch(() => undefined);
   if (tick) clearInterval(tick);
   if (retry) clearInterval(retry);
   document.removeEventListener("visibilitychange", onVisibility);

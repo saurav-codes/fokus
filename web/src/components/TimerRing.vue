@@ -1,5 +1,5 @@
 <template>
-  <div class="ring" :class="`is-${state}`">
+  <div class="ring" :class="[`is-${state}`, { urgent }]">
     <svg :viewBox="`0 0 ${SIZE} ${SIZE}`" role="img" :aria-label="ariaLabel">
       <circle class="track" :cx="C" :cy="C" :r="R" />
       <circle
@@ -32,7 +32,18 @@ const props = defineProps<{
   /** cycle total, e.g. "5 minutes" */
   sub?: string;
   state: "running" | "paused" | "completed";
+  /** ms left in the cycle; drives the last-15s red highlight */
+  remainingMs?: number;
 }>();
+
+const URGENT_MS = 15000;
+const urgent = computed(
+  () =>
+    props.state === "running" &&
+    props.remainingMs !== undefined &&
+    props.remainingMs > 0 &&
+    props.remainingMs <= URGENT_MS,
+);
 
 const SIZE = 320;
 const STROKE = 10;
@@ -69,10 +80,13 @@ const ariaLabel = computed(
 }
 .bar {
   stroke: var(--accent, #22c55e);
-  transition: stroke-dashoffset 240ms linear, opacity 200ms ease;
+  transition: stroke-dashoffset 240ms linear, stroke 400ms ease, opacity 200ms ease;
 }
 .is-paused .bar {
   opacity: 0.35;
+}
+.urgent .bar {
+  stroke: var(--bad, #ef4444);
 }
 .mid {
   position: absolute;
@@ -94,6 +108,10 @@ const ariaLabel = computed(
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
   color: var(--ink, #111111);
+  transition: color 400ms ease;
+}
+.urgent .time {
+  color: var(--bad, #ef4444);
 }
 .sub {
   font: 400 13.5px/1.4 var(--sans, ui-sans-serif, system-ui, sans-serif);
