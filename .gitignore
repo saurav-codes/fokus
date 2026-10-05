@@ -9,3 +9,4 @@ web/dist/
 android/.gradle/
 android/build/
 android/app/build/
+ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
