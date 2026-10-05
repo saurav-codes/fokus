@@ -1,6 +1,5 @@
 package com.lazyplanner.fokus;
 
-import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
@@ -12,16 +11,11 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
-                == Configuration.UI_MODE_NIGHT_YES;
-        // Dark page -> black bar with light icons; light page -> light bar with dark icons.
-        int barColor = night ? Color.parseColor("#0F0F0E") : Color.parseColor("#F7F7F5");
-        getWindow().setStatusBarColor(barColor);
+        // Edge-to-edge: the page itself paints the bar; we only flip icon contrast.
+        boolean night = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
         final View root = getWindow().getDecorView();
-        root.post(() -> {
-            WindowCompat.getInsetsController(getWindow(), root).setAppearanceLightStatusBars(!night);
-        });
-        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
-                .setAppearanceLightStatusBars(!night);
+        root.post(() -> WindowCompat.getInsetsController(getWindow(), root)
+                .setAppearanceLightStatusBars(!night));
     }
 }
