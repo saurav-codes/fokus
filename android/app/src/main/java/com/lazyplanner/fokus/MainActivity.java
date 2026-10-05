@@ -14,7 +14,7 @@ public class MainActivity extends BridgeActivity {
         boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
                 == Configuration.UI_MODE_NIGHT_YES;
         // Dark page -> black bar with light icons; light page -> light bar with dark icons.
-        int barColor = night ? Color.BLACK : Color.parseColor("#F7F7F5");
+        int barColor = night ? Color.parseColor("#0F0F0E") : Color.parseColor("#F7F7F5");
         getWindow().setStatusBarColor(barColor);
         WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
                 .setAppearanceLightStatusBars(!night);
