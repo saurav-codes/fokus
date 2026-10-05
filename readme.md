@@ -210,6 +210,21 @@ tracked. Building needs an Android SDK, installed via Android Studio, on the
 machine that builds. This machine has Java only (no SDK), so no gradle build
 was attempted or validated here; `cap add` / `cap sync` are green without it.
 
+### iOS
+
+Capacitor adds an `ios/` project too. First-time install requires five one-time
+device steps: enable Developer Mode on the iPhone, unlock it, add an Apple ID
+in Xcode → Settings → Accounts, pick a Personal Team in the project's Signing &
+Capabilities, and trust the certificate in VPN & Device Management. After that,
+the CLI is fully self-served:
+
+```sh
+xcodebuild -project ios/App/App.xcodeproj -scheme App \
+  -destination 'platform=iOS,name=<device name>' build
+devicectl device install app --device <udid> "<App.app path>"
+devicectl device process launch --device <udid> com.lazyplanner.fokus
+```
+
 ### OSS store: F-Droid
 
 The app qualifies for F-Droid (MIT licensed, OSS dependencies). Status and
