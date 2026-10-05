@@ -100,7 +100,10 @@ input, select { font: inherit; color: inherit; }
 
 /* Nav */
 .nav { position: sticky; top: 0; z-index: 50; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid transparent; }
-.nav-inner { display: flex; align-items: center; justify-content: space-between; height: 68px; }
+.nav-inner { display: flex; align-items: center; justify-content: space-between; height: 68px; padding-top: 0; }
+@supports (padding-top: env(safe-area-inset-top)) {
+  .nav-inner { padding-top: env(safe-area-inset-top); height: calc(68px + env(safe-area-inset-top)); }
+}
 .logo { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; color: var(--ink); font: 600 18px/1 var(--display); }
 .logo-mark { width: 26px; height: 26px; border-radius: 7px; }
 .logo-mark-sm { width: 18px; height: 18px; border-radius: 5px; }
