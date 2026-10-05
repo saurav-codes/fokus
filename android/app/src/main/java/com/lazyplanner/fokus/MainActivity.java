@@ -3,6 +3,7 @@ package com.lazyplanner.fokus;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.View;
 import androidx.core.view.WindowCompat;
 
 import com.getcapacitor.BridgeActivity;
@@ -16,6 +17,10 @@ public class MainActivity extends BridgeActivity {
         // Dark page -> black bar with light icons; light page -> light bar with dark icons.
         int barColor = night ? Color.parseColor("#0F0F0E") : Color.parseColor("#F7F7F5");
         getWindow().setStatusBarColor(barColor);
+        final View root = getWindow().getDecorView();
+        root.post(() -> {
+            WindowCompat.getInsetsController(getWindow(), root).setAppearanceLightStatusBars(!night);
+        });
         WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
                 .setAppearanceLightStatusBars(!night);
     }
