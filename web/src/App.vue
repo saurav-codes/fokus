@@ -35,9 +35,6 @@
     <div class="wrap footer-inner">
       <img class="logo-mark-sm" src="/mark.png" alt="" />
       <p>fokus · focus together</p>
-      <RouterLink to="/blog" class="footer-link">blog</RouterLink>
-      <!-- APK comes from GitHub Releases; F-Droid listing comes later -->
-      <a href="https://github.com/saurav-codes/fokus/releases/latest/download/fokus.apk" class="footer-link">android app</a>
     </div>
   </footer>
 </template>
@@ -53,12 +50,25 @@ function initialTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+// Tints the Android status bar in the Capacitor shell; a no-op on the web.
+async function syncStatusBar(t: Theme) {
+  try {
+    const { StatusBar, Style } = await import("@capacitor/status-bar");
+    await StatusBar.setStyle({ style: t === "dark" ? Style.Light : Style.Dark });
+    await StatusBar.setBackgroundColor({ color: t === "dark" ? "#0F0F0E" : "#F7F7F5" });
+  } catch {
+    // Not running inside a native shell.
+  }
+}
+
 const theme = ref<Theme>(initialTheme());
 document.documentElement.dataset.theme = theme.value;
+syncStatusBar(theme.value);
 
 function toggleTheme() {
   theme.value = theme.value === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = theme.value;
   localStorage.setItem("fokus-theme", theme.value);
+  syncStatusBar(theme.value);
 }
 </script>
