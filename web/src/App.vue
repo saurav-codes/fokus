@@ -35,12 +35,20 @@
     <div class="wrap footer-inner">
       <img class="logo-mark-sm" src="/mark.png" alt="" />
       <p>fokus · focus together</p>
+      <template v-if="!isNative">
+        <RouterLink to="/blog" class="footer-link">blog</RouterLink>
+        <a href="https://github.com/saurav-codes/fokus/releases/latest/download/fokus.apk" class="footer-link">android app</a>
+      </template>
     </div>
   </footer>
 </template>
 
 <script setup lang="ts">
+import { Capacitor } from "@capacitor/core";
 import { ref } from "vue";
+
+// Hide footer links inside the native Android shell.
+const isNative = Capacitor.isNativePlatform();
 
 type Theme = "light" | "dark";
 
