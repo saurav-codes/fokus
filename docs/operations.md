@@ -2,11 +2,9 @@
 
 ## Production
 
-- URL: `https://focus.lazyplanner.app`
-- Platform: self-hosted OpenShip (ox1 engine), no Docker
-- DigitalOcean droplet: `ubuntu-c-4-sfo3` (`209.38.69.226`)
-- OpenShip project: `proj_fnIvW87_-LiNqvv5`
-- Repository: `saurav-codes/focus-timer-v`, branch `main`
+- URL: `https://fokus.lazyplanner.app`
+- Platform: [ox](https://deploywithox.com) (systemd and Caddy on a VPS), no Docker
+- Repository: `saurav-codes/fokus`, branch `main`
 
 Ox deploys the repository's `ox.toml`. The process is one Bun process:
 `bun src/index.ts` serving API, WebSockets, and the SPA from `web/dist`.
@@ -46,8 +44,8 @@ where `GET /healthz` returns `{"ok":true}` and a WebSocket upgrade to
 
 ## SQLite backup and restore
 
-OpenShip-managed S3 backups are not configured. Until then, make an
-application-consistent copy with the standard library:
+ox's S3 backup target is not configured for this project. Until it is,
+make an application-consistent copy with the standard library:
 
 ```bash
 python3 - <<'PY'
@@ -73,7 +71,7 @@ durable `memberships` row, so the session counts toward the joiner's
 stats even after they leave; the participant list (`followers`) stays
 live presence. The web SPA is Vue 3 in `web/`, built at deploy
 time, served from the same process. Design language is taken from the ox
-landing page (vpsctl project).
+landing page (https://deploywithox.com).
 
 ### Migrating the legacy Django database
 

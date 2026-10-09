@@ -74,7 +74,7 @@ Capacitor dev deps; see Android (Capacitor) below.
 - **Per-participant focus logs** (the old FocusPeriod rows each follower
   tracked during someone else's session). Add a periods table back when a
   real participant asks for it.
-- **Redis, channels, scheduler, nginx, docker**. One process, one ox-engine
+- **Redis, channels, scheduler, nginx, docker**. One process, one ox
   deploy.
 - **Client sync throttling**. Reads are O(1); nothing to throttle.
 
@@ -181,8 +181,9 @@ bun run lint                 # biome
 
 ## Deployment
 
-Self-hosted OpenShip, ox1 engine (`ox.toml`). Build runs
-`bun install --frozen` and builds the SPA into `web/dist`. The process is a
+Deployed with [ox](https://deploywithox.com) from `ox.toml`, as systemd
+units behind Caddy on a VPS. The build runs `bun install --frozen-lockfile`
+and builds the SPA into `web/dist`. The process is a
 plain `bun src/index.ts` command; SQLite lives at `./data/db.sqlite3`.
 Needed env vars: `SESSION_SECRET` (required), `PORT`, `DATABASE_PATH`.
 See `docs/operations.md`. No Docker anywhere.
